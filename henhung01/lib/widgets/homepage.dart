@@ -9,39 +9,36 @@ void initializeFirebase() async {
   WidgetsFlutterBinding.ensureInitialized();
   Platform.isAndroid
       ? await Firebase.initializeApp(
-          options: const FirebaseOptions(
-              apiKey: 'AIzaSyAgXEgWLu3swzvs0q6LHSVbYwukdBiqthw',
-              appId: '1:948180596215:android:cd402baeb7d8ec0bbbaaf2',
-              messagingSenderId: '948180596215',
-              projectId: 'henhung01'))
-      : await Firebase.initializeApp();
+      options: const FirebaseOptions(
+          apiKey: 'AIzaSyAgXEgWLu3swzvs0q6LHSVbYwukdBiqthw',
+          appId: '1:948180596215:android:cd402baeb7d8ec0bbbaaf2',
+          messagingSenderId: '948180596215',
+          projectId: 'henhung01')
+  ) : await Firebase.initializeApp();
 }
 
 class MyHomePage extends StatefulWidget {
+
   @override
   _MyHomePage createState() => _MyHomePage();
 }
-
 class _MyHomePage extends State<MyHomePage> {
   final DatabaseReference _database = FirebaseDatabase.instance.reference();
-  StreamController<bool> _doorStreamController = StreamController<bool>();
-  StreamController<bool> _lr1StreamController = StreamController<bool>();
-  StreamController<bool> _lr2StreamController = StreamController<bool>();
-  StreamController<bool> _lr3StreamController = StreamController<bool>();
-  StreamController<bool> _nlStreamController = StreamController<bool>();
-  static StreamController<List<DateTime>> _openStreamController =
-      StreamController<List<DateTime>>();
-  static Stream<List<DateTime>> get openStream => _openStreamController.stream;
+  static late StreamController<bool> _doorStreamController = StreamController<bool>();
+  static late StreamController<bool> _lr1StreamController = StreamController<bool>();
+  static late StreamController<bool> _lr2StreamController = StreamController<bool>();
+  static late StreamController<bool> _lr3StreamController = StreamController<bool>();
+  static late StreamController<bool> _nlStreamController = StreamController<bool>();
+    static late StreamController<List<String>> _openStreamController = StreamController<List<String>>();
+   static Stream<List<String>> get openStream => _openStreamController.stream;
 
-  static StreamController<List<DateTime>> _closeStreamController =
-      StreamController<List<DateTime>>();
-  static Stream<List<DateTime>> get closeStream =>
-      _closeStreamController.stream;
-  Stream<bool>? get doorStream => _doorStreamController.stream;
-  Stream<bool>? get lr1Stream => _lr1StreamController.stream;
-  Stream<bool>? get lr2Stream => _lr2StreamController.stream;
-  Stream<bool>? get lr3Stream => _lr3StreamController.stream;
-  Stream<bool>? get nlStream => _nlStreamController.stream;
+   static late StreamController<List<String>> _closeStreamController = StreamController<List<String>>();
+   static Stream<List<String>> get closeStream => _closeStreamController.stream;
+  static  Stream<bool>? get doorStream => _doorStreamController.stream;
+  static  Stream<bool>? get lr1Stream => _lr1StreamController.stream;
+    static Stream<bool>? get lr2Stream => _lr2StreamController.stream;
+  static Stream<bool>? get lr3Stream => _lr3StreamController.stream;
+    static Stream<bool>? get nlStream => _nlStreamController.stream;
   late DatabaseReference _ledReference;
   late DatabaseReference _passReference;
   late DatabaseReference _doorReference;
@@ -49,21 +46,22 @@ class _MyHomePage extends State<MyHomePage> {
   late DatabaseReference _lr2Reference;
   late DatabaseReference _lr3Reference;
   late DatabaseReference _nlReference;
-  late DatabaseReference _historyReference;
+  late DatabaseReference _openReference;
+  late DatabaseReference _closeReference;
 
   bool doorValue = false;
   bool lr1 = false;
   bool lr2 = false;
-  bool lr3 = false;
+  bool lr3= false;
   bool nl = false;
   int _ledValue = 0;
   String _passValue = '';
-  List<DateTime> historyClose = [];
-  List<DateTime> historyOpen = [];
+  List<String> historyClose = [];
+  List<String> historyOpen = [];
   DateTime? tO;
   DateTime? tC;
-  int dem1 = 0;
-  int dem2 = 0;
+  int dem1=0;
+  int dem2=0;
   void listenToPassReference() {
     _passReference.onValue.listen((DatabaseEvent event) {
       // Truy cập snapshot từ event
@@ -76,18 +74,16 @@ class _MyHomePage extends State<MyHomePage> {
       }
     });
   }
-<<<<<<< HEAD
-  void _addTimeToCloseHistory(DateTime time) {
-    DatabaseReference closeRef = _database.child('history').child('close');
-    closeRef.push().set(time.toIso8601String());
+  void _addTimeToCloseHistory(String time) {
+    DatabaseReference closeRef = _database.child('close');
+    closeRef.push().set(time);
   }
-  void _addTimeOpenToHistory(DateTime time) {
-    DatabaseReference openRef = _database.child('history').child('open');
-    openRef.push().set(time.toIso8601String());
+  void _addTimeOpenToHistory(String time) {
+    DatabaseReference openRef = _database.child('open');
+    openRef.push().set(time);
   }
 
-=======
->>>>>>> 7787000d372e6f9f306541dedf3db0912320d4e7
+
 
   @override
   void initState() {
@@ -99,7 +95,18 @@ class _MyHomePage extends State<MyHomePage> {
     _lr2Reference = FirebaseDatabase.instance.reference().child('R2');
     _lr3Reference = FirebaseDatabase.instance.reference().child('R3');
     _nlReference = FirebaseDatabase.instance.reference().child('NongLanh');
-    _historyReference = FirebaseDatabase.instance.reference().child('history');
+    _openReference = FirebaseDatabase.instance.reference().child('open');
+    _closeReference = FirebaseDatabase.instance.reference().child('close');
+
+    _openStreamController??= StreamController<List<String>>.broadcast();
+    _closeStreamController??= StreamController<List<String>>.broadcast();
+    _closeStreamController??= StreamController<List<String>>.broadcast();
+    _lr1StreamController??= StreamController<bool>.broadcast();
+    _doorStreamController??= StreamController<bool>.broadcast();
+    _lr2StreamController??= StreamController<bool>.broadcast();
+    _lr3StreamController??= StreamController<bool>.broadcast();
+    _nlStreamController??= StreamController<bool>.broadcast();
+
 
     // Lắng nghe sự thay đổi của door
     _doorReference.onValue.listen((DatabaseEvent event) {
@@ -113,12 +120,24 @@ class _MyHomePage extends State<MyHomePage> {
 
         if (doorValue) {
           DateTime currentTimeOpen = DateTime.now();
-          _addTimeOpenToHistory(currentTimeOpen);
+          int year = currentTimeOpen.year;
+          int month = currentTimeOpen.month;
+          int day = currentTimeOpen.day;
+          int hour = currentTimeOpen.hour;
+          int minute = currentTimeOpen.minute;
+          int second = currentTimeOpen.second;
+          _addTimeOpenToHistory("$hour:$minute:$second-$day/$month/$year");
         }
 
         else {
           DateTime currentTimeClose = DateTime.now();
-          _addTimeToCloseHistory(currentTimeClose);
+          int year = currentTimeClose.year;
+          int month = currentTimeClose.month;
+          int day = currentTimeClose.day;
+          int hour = currentTimeClose.hour;
+          int minute = currentTimeClose.minute;
+          int second = currentTimeClose.second;
+          _addTimeToCloseHistory("$hour:$minute:$second-$day/$month/$year");
         }
       } else {
         print('Không tìm thấy giá trị door trong cơ sở dữ liệu.');
@@ -178,43 +197,28 @@ class _MyHomePage extends State<MyHomePage> {
         print('Không tìm thấy giá trị nl trong cơ sở dữ liệu.');
       }
     });
-<<<<<<< HEAD
     //history open
-    _historyReference.child('open').onValue.listen((event) {
+    _openReference.onValue.listen((event) {
       DataSnapshot snapshot = event.snapshot;
       if (snapshot.value != null) {
         Map<dynamic, dynamic> values = snapshot.value as Map<dynamic, dynamic>;
-
         if (values != null) {
-          List<DateTime> newHistoryOpen = [];
+          List<String> newHistoryOpen = [];
           values.forEach((key, value) {
-=======
-    //histoy open
-    _database.child('history').child('open').onChildAdded.listen((event) {
-      DataSnapshot snapshots = event.snapshot;
-      dynamic firebaseValue = snapshots.value;
-      if (firebaseValue is DateTime) {
-        tO = firebaseValue;
-      }
-      if (event.snapshot.value != null) {
-        dynamic snapshotValue = event.snapshot.value;
-        if (snapshotValue is List) {
-          List<dynamic> values = snapshotValue;
-          for (var value in values) {
->>>>>>> 7787000d372e6f9f306541dedf3db0912320d4e7
             if (value is String) {
-              DateTime time = DateTime.parse(value);
-              newHistoryOpen.add(time);
+              String time = value;
+               newHistoryOpen.add(time);
             } else {
               print('Giá trị không phải là kiểu String ${value}');
             }
-<<<<<<< HEAD
           });
+          historyOpen.clear();
           // Thêm các phần tử mới vào danh sách
           historyOpen.addAll(newHistoryOpen);
 
           // Cập nhật Stream để thông báo rằng có dữ liệu mới
-          _openStreamController.add(historyOpen);
+           _openStreamController.add(historyOpen);
+          // _historyStreamController.add(historyOpen);
           setState(() {}); // Cập nhật UI khi dữ liệu đã được tải
         } else {
           print('Giá trị snapshot không phải là một Map<dynamic, dynamic>');
@@ -224,47 +228,27 @@ class _MyHomePage extends State<MyHomePage> {
       }
     });
     //history close
-    _historyReference.child('close').onValue.listen((event) {
+    _closeReference.onValue.listen((event) {
       DataSnapshot snapshot = event.snapshot;
       if (snapshot.value != null) {
         Map<dynamic, dynamic> values = snapshot.value as Map<dynamic, dynamic>;
 
         if (values != null) {
-          List<DateTime> newHistoryClose = [];
+          List<String> newHistoryClose = [];
           values.forEach((key, value) {
-=======
-          }
-        }
-        _openStreamController.add(historyOpen);
-      } else {
-        print('Snapshot value is not a List');
-      }
-    });
-    //histoy close
-    _database.child('history').child('close').onChildAdded.listen((event) {
-      DataSnapshot snapshots = event.snapshot;
-      dynamic firebaseValue = snapshots.value;
-      if (firebaseValue is DateTime) {
-        tC = firebaseValue;
-      }
-      if (event.snapshot.value != null) {
-        dynamic snapshotValue = event.snapshot.value;
-        if (snapshotValue is List) {
-          List<dynamic> values = snapshotValue;
-          for (var value in values) {
->>>>>>> 7787000d372e6f9f306541dedf3db0912320d4e7
             if (value is String) {
-              DateTime time = DateTime.parse(value);
-              newHistoryClose.add(time);
+              String time = value;
+               newHistoryClose.add(time);
             } else {
               print('Giá trị không phải là kiểu String ${value}');
             }
-          });
+          });;
+          historyClose.clear();
           // Thêm các phần tử mới vào danh sách
           historyClose.addAll(newHistoryClose);
 
           // Cập nhật Stream để thông báo rằng có dữ liệu mới
-          _closeStreamController.add(historyClose);
+           _closeStreamController.add(historyClose);
           setState(() {}); // Cập nhật UI khi dữ liệu đã được tải
         } else {
           print('Giá trị snapshot không phải là một Map<dynamic, dynamic>');
@@ -275,30 +259,16 @@ class _MyHomePage extends State<MyHomePage> {
     });
   }
 
-<<<<<<< HEAD
   @override
   void dispose() {
-    // Đóng StreamControllers khi widget bị hủy
-    _openStreamController.close();
-    _closeStreamController.close();
+    // _openStreamController.close();
+    // _closeStreamController.close();
     _lr1StreamController.close();
     _doorStreamController.close();
     _lr2StreamController.close();
     _lr3StreamController.close();
     _nlStreamController.close();
-
-
     super.dispose();
-=======
-  void _addTimeToCloseHistory(DateTime time) {
-    DatabaseReference closeRef = _database.child('history').child('close');
-    closeRef.push().set(time.toIso8601String());
-  }
-
-  void _addTimeOpenToHistory(DateTime time) {
-    DatabaseReference openRef = _database.child('history').child('open');
-    openRef.push().set(time.toIso8601String());
->>>>>>> 7787000d372e6f9f306541dedf3db0912320d4e7
   }
 
   final passoldController = TextEditingController();
@@ -310,10 +280,8 @@ class _MyHomePage extends State<MyHomePage> {
     RegExp regExp = RegExp(r'[^0-9]');
     return regExp.hasMatch(input);
   }
-
   bool checkPass() {
-    if (passnewdController.text.length != 8 ||
-        containsNonNumericCharacter(passnewdController.text)) return false;
+    if (passnewdController.text.length != 8 || containsNonNumericCharacter(passnewdController.text)) return false;
 
     if (_passValue != passoldController.text) return false;
     if (passnewd1Controller.text != passnewdController.text) return false;
@@ -341,19 +309,16 @@ class _MyHomePage extends State<MyHomePage> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           TextField(
-                            decoration:
-                                InputDecoration(labelText: 'Mật khẩu cũ'),
+                            decoration: InputDecoration(labelText: 'Mật khẩu cũ'),
                             controller: passoldController,
                           ),
                           TextField(
-                            decoration:
-                                InputDecoration(labelText: 'Mật khẩu mới'),
+                            decoration: InputDecoration(labelText: 'Mật khẩu mới'),
                             controller: passnewdController,
                             obscureText: true,
                           ),
                           TextField(
-                            decoration: InputDecoration(
-                                labelText: 'Nhập lại mật khẩu mới'),
+                            decoration: InputDecoration(labelText: 'Nhập lại mật khẩu mới'),
                             controller: passnewd1Controller,
                             obscureText: true,
                           ),
@@ -361,15 +326,11 @@ class _MyHomePage extends State<MyHomePage> {
                       ),
                     ),
                   ),
-                  // Text(
-                  //
-                  //   'Trạng thái LED: $_passValue',
-                  //   style: TextStyle(fontSize: 20),
-                  // ),
+
                   SizedBox(height: 20),
                   ElevatedButton(
                     onPressed: () {
-                      if (checkPass()) {
+                      if(checkPass()) {
                         String newPassValue = passnewd1Controller.text;
                         _passReference.set(newPassValue);
                         _ledReference.set(1);
@@ -386,6 +347,7 @@ class _MyHomePage extends State<MyHomePage> {
                               actions: [
                                 TextButton(
                                   onPressed: () {
+
                                     Navigator.pop(context);
                                   },
                                   child: Text('Đóng'),
@@ -403,11 +365,11 @@ class _MyHomePage extends State<MyHomePage> {
                           builder: (BuildContext context) {
                             return AlertDialog(
                               title: Text('Lỗi'),
-                              content: Text(
-                                  'Mật khẩu cũ hoặc Mật khẩu mới không trùng khớp. Vui lòng thử lại'),
+                              content: Text('Mật khẩu cũ hoặc Mật khẩu mới không trùng khớp. Vui lòng thử lại'),
                               actions: [
                                 TextButton(
                                   onPressed: () {
+
                                     Navigator.pop(context);
                                   },
                                   child: Text('Đóng'),
@@ -428,128 +390,49 @@ class _MyHomePage extends State<MyHomePage> {
               ),
             ),
           );
-        });
-  }
-<<<<<<< HEAD
-=======
-
-  Future<void> _showConfirmationDialog(BuildContext context) async {
-    return showDialog<void>(
-      context: context,
-      barrierDismissible:
-          true, // Không đóng được bằng cách nhấn bên ngoài hộp thoại
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Xác nhận'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('Bạn có chắc chắn muốn đóng/mở cửa không?'),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Không'),
-              onPressed: () {
-                // Đóng hộp thoại nếu người dùng chọn "Không"
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: Text('Có'),
-              onPressed: () {
-                // Thực hiện hành động mở cửa nếu người dùng chọn "Có"
-                _openDoor();
-                showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return AlertDialog(
-                      title: Text('Trạng thái cửa'),
-                      content: Text('Đã mở!'),
-                      actions: [
-                        TextButton(
-                          onPressed: () {
-                            Navigator.of(context)
-                                .popUntil((route) => route.isFirst);
-                          },
-                          child: Text('Đóng'),
-                        ),
-                      ],
-                    );
-                  },
-                );
-              },
-            ),
-          ],
-        );
-      },
+        }
     );
   }
-
->>>>>>> 7787000d372e6f9f306541dedf3db0912320d4e7
   void _openDoor() {
     _database.update({'door': true});
   }
-
   @override
   Widget timeDoorOpen(BuildContext context) {
-    return StreamBuilder<List<DateTime>>(
-      stream: _openStreamController.stream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return CircularProgressIndicator(); // Hiển thị khi đang tải dữ liệu
-        } else if (snapshot.hasError) {
-          return Text('Error: ${snapshot.error}');
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Text('Không có dữ liệu');
-        } else {
-          // Hiển thị danh sách lịch sử mở cửa bằng ListView.builder
-          return SingleChildScrollView(
-            child: Column(
-              children: snapshot.data!.map((time) {
-                return ListTile(
-                  title: Text('Thời gian mở: ${time.toLocal()}'),
-                );
-              }).toList(),
-            ),
-          );
-        }
-      },
-    );
-  }
-<<<<<<< HEAD
-=======
+    if (historyOpen.isEmpty) {
+      return Text('Không có dữ liệu');
+    } else {
+      List<Widget> widgetList = historyClose.map((time) {
+        return ListTile(
+          title: Text('Thời gian đóng: ${time}'),
+        );
+      }).toList();
 
+      return SingleChildScrollView(
+        child: Column(
+          children: widgetList,
+        ),
+      );
+    }
+  }
   @override
->>>>>>> 7787000d372e6f9f306541dedf3db0912320d4e7
   Widget timeDoorClose(BuildContext context) {
-    return StreamBuilder<List<DateTime>>(
-      stream: _closeStreamController.stream,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return CircularProgressIndicator(); // Hiển thị khi đang tải dữ liệu
-        } else if (snapshot.hasError) {
-          return Text('Error: ${snapshot.error}');
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return Text('Không có dữ liệu');
-        } else {
-          // Hiển thị danh sách lịch sử mở cửa bằng ListView.builder
-          return SingleChildScrollView(
-            child: Column(
-              children: snapshot.data!.map((time) {
-                return ListTile(
-                  title: Text('Thời gian đóng: ${time.toLocal()}'),
-                );
-              }).toList(),
-            ),
-          );
-        }
-      },
-    );
-  }
+    if (historyClose.isEmpty) {
+      return Text('Không có dữ liệu');
+    } else {
+      List<Widget> widgetList = historyClose.map((time) {
+        return ListTile(
+          title: Text('Thời gian đóng: ${time}'),
+        );
+      }).toList();
 
-  void timeD(BuildContext context) {
+      return SingleChildScrollView(
+        child: Column(
+          children: widgetList,
+        ),
+      );
+    }
+  }
+  void timeD(BuildContext context){
     showDialog(
         context: context,
         builder: (BuildContext context) {
@@ -580,6 +463,7 @@ class _MyHomePage extends State<MyHomePage> {
                               actions: [
                                 TextButton(
                                   onPressed: () {
+
                                     Navigator.of(context).pop(); // Đóng hộp thoại khi nhấn nút
                                   },
                                   child: Text('Đóng'),
@@ -610,6 +494,7 @@ class _MyHomePage extends State<MyHomePage> {
                               actions: [
                                 TextButton(
                                   onPressed: () {
+
                                     Navigator.of(context).pop(); // Đóng hộp thoại khi nhấn nút
                                   },
                                   child: Text('Đóng'),
@@ -630,16 +515,18 @@ class _MyHomePage extends State<MyHomePage> {
             actions: [
               TextButton(
                 onPressed: () {
+
                   Navigator.of(context).pop(); // Đóng hộp thoại khi nhấn nút
                 },
                 child: Text('Đóng'),
               ),
             ],
           );
-        });
+        }
+    );
   }
 
-  void _doorManager(BuildContext context) {
+  void _doorManager (BuildContext context) {
     ValueNotifier<bool> selectedDoorStatus = ValueNotifier<bool>(doorValue);
 
     showDialog(
@@ -664,13 +551,11 @@ class _MyHomePage extends State<MyHomePage> {
                             children: [
                               Text(
                                 'Mở',
-                                style: TextStyle(
-                                    color: value ? Colors.blue : Colors.grey),
+                                style: TextStyle(color: value ? Colors.blue : Colors.grey),
                               ),
                               Text(
                                 'Đóng',
-                                style: TextStyle(
-                                    color: value ? Colors.grey : Colors.red),
+                                style: TextStyle(color: value ? Colors.grey : Colors.red),
                               ),
                             ],
                             isSelected: [value, !value],
@@ -680,6 +565,7 @@ class _MyHomePage extends State<MyHomePage> {
                           );
                         },
                       )
+
                     ],
                   ),
                   // Text('${historyOpen.toString()} + ${historyOpen.toString()}'),
@@ -687,12 +573,14 @@ class _MyHomePage extends State<MyHomePage> {
                       onPressed: () {
                         openshowdialog(context);
                       },
-                      child: Text('Đổi mật khẩu')),
+                      child: Text('Đổi mật khẩu')
+                  ),
                   TextButton(
                       onPressed: () {
                         timeD(context);
                       },
-                      child: Text('Lịch sử đóng mở cửa')),
+                      child: Text('Lịch sử đóng mở cửa')
+                  ),
                 ],
               ),
             ),
@@ -701,15 +589,17 @@ class _MyHomePage extends State<MyHomePage> {
                 onPressed: () {
                   _database.update({'door': selectedDoorStatus.value});
                   _doorStreamController.add(selectedDoorStatus.value);
+
                   Navigator.of(context).pop(); // Đóng hộp thoại khi nhấn nút
                 },
                 child: Text('Xác nhận'),
               ),
+
             ],
           );
-        });
+        }
+    );
   }
-
   void ledManager(BuildContext context) {
     ValueNotifier<bool> selectedDoorStatus1 = ValueNotifier<bool>(lr1);
     ValueNotifier<bool> selectedDoorStatus2 = ValueNotifier<bool>(lr2);
@@ -736,13 +626,11 @@ class _MyHomePage extends State<MyHomePage> {
                             children: [
                               Text(
                                 'Mở',
-                                style: TextStyle(
-                                    color: value ? Colors.blue : Colors.grey),
+                                style: TextStyle(color: value ? Colors.blue : Colors.grey),
                               ),
                               Text(
                                 'Đóng',
-                                style: TextStyle(
-                                    color: value ? Colors.grey : Colors.red),
+                                style: TextStyle(color: value ? Colors.grey : Colors.red),
                               ),
                             ],
                             isSelected: [value, !value],
@@ -765,13 +653,11 @@ class _MyHomePage extends State<MyHomePage> {
                             children: [
                               Text(
                                 'Mở',
-                                style: TextStyle(
-                                    color: value ? Colors.blue : Colors.grey),
+                                style: TextStyle(color: value ? Colors.blue : Colors.grey),
                               ),
                               Text(
                                 'Đóng',
-                                style: TextStyle(
-                                    color: value ? Colors.grey : Colors.red),
+                                style: TextStyle(color: value ? Colors.grey : Colors.red),
                               ),
                             ],
                             isSelected: [value, !value],
@@ -794,13 +680,11 @@ class _MyHomePage extends State<MyHomePage> {
                             children: [
                               Text(
                                 'Mở',
-                                style: TextStyle(
-                                    color: value ? Colors.blue : Colors.grey),
+                                style: TextStyle(color: value ? Colors.blue : Colors.grey),
                               ),
                               Text(
                                 'Đóng',
-                                style: TextStyle(
-                                    color: value ? Colors.grey : Colors.red),
+                                style: TextStyle(color: value ? Colors.grey : Colors.red),
                               ),
                             ],
                             isSelected: [value, !value],
@@ -828,9 +712,9 @@ class _MyHomePage extends State<MyHomePage> {
               ),
             ],
           );
-        });
+        }
+    );
   }
-
   void nlManager(BuildContext context) {
     ValueNotifier<bool> selectedDoorStatus = ValueNotifier<bool>(nl);
     showDialog(
@@ -855,13 +739,11 @@ class _MyHomePage extends State<MyHomePage> {
                             children: [
                               Text(
                                 'Mở',
-                                style: TextStyle(
-                                    color: value ? Colors.blue : Colors.grey),
+                                style: TextStyle(color: value ? Colors.blue : Colors.grey),
                               ),
                               Text(
                                 'Đóng',
-                                style: TextStyle(
-                                    color: value ? Colors.grey : Colors.red),
+                                style: TextStyle(color: value ? Colors.grey : Colors.red),
                               ),
                             ],
                             isSelected: [value, !value],
@@ -880,6 +762,7 @@ class _MyHomePage extends State<MyHomePage> {
               TextButton(
                 onPressed: () {
                   _database.update({'NongLanh': selectedDoorStatus.value});
+
                   // _nlStreamController.add(selectedDoorStatus.value);
                   Navigator.of(context).pop(); // Đóng hộp thoại khi nhấn nút
                 },
@@ -887,19 +770,20 @@ class _MyHomePage extends State<MyHomePage> {
               ),
             ],
           );
-        });
+        }
+    );
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('Smart Home',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-              fontSize: 30,
-            )),
+        style:  TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+          fontSize: 30,
+          )
+        ),
         backgroundColor: Colors.blueAccent,
       ),
       body: Column(
@@ -922,14 +806,14 @@ class _MyHomePage extends State<MyHomePage> {
                         color: Colors.lightBlue,
                         size: 50,
                       ),
-                      Text(
-                        'Cửa',
+                      Text('Cửa',
                         style: TextStyle(
                           color: Colors.black,
                         ),
                       )
                     ],
-                  )),
+                  )
+              ),
               ElevatedButton(
                   onPressed: () {
                     ledManager(context);
@@ -944,14 +828,14 @@ class _MyHomePage extends State<MyHomePage> {
                         color: Colors.lightBlue,
                         size: 50,
                       ),
-                      Text(
-                        'Đèn',
+                      Text('Đèn',
                         style: TextStyle(
                           color: Colors.black,
                         ),
                       )
                     ],
-                  )),
+                  )
+              ),
               ElevatedButton(
                   onPressed: () {
                     nlManager(context);
@@ -966,14 +850,14 @@ class _MyHomePage extends State<MyHomePage> {
                         color: Colors.lightBlue,
                         size: 50,
                       ),
-                      Text(
-                        'Nóng lạnh',
+                      Text('Nóng lạnh',
                         style: TextStyle(
                           color: Colors.black,
                         ),
                       )
                     ],
-                  )),
+                  )
+              ),
             ],
           )
         ],
