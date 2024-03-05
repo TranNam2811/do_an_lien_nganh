@@ -49,6 +49,7 @@ class _MyHomePage extends State<MyHomePage> {
   late DatabaseReference _lr2Reference;
   late DatabaseReference _lr3Reference;
   late DatabaseReference _nlReference;
+  late DatabaseReference _historyReference;
 
   bool doorValue = false;
   bool lr1 = false;
@@ -75,11 +76,22 @@ class _MyHomePage extends State<MyHomePage> {
       }
     });
   }
+<<<<<<< HEAD
+  void _addTimeToCloseHistory(DateTime time) {
+    DatabaseReference closeRef = _database.child('history').child('close');
+    closeRef.push().set(time.toIso8601String());
+  }
+  void _addTimeOpenToHistory(DateTime time) {
+    DatabaseReference openRef = _database.child('history').child('open');
+    openRef.push().set(time.toIso8601String());
+  }
+
+=======
+>>>>>>> 7787000d372e6f9f306541dedf3db0912320d4e7
 
   @override
   void initState() {
     super.initState();
-    final DatabaseReference _database = FirebaseDatabase.instance.reference();
     _ledReference = FirebaseDatabase.instance.reference().child('led');
     _doorReference = FirebaseDatabase.instance.reference().child('door');
     _passReference = FirebaseDatabase.instance.reference().child('password');
@@ -87,6 +99,7 @@ class _MyHomePage extends State<MyHomePage> {
     _lr2Reference = FirebaseDatabase.instance.reference().child('R2');
     _lr3Reference = FirebaseDatabase.instance.reference().child('R3');
     _nlReference = FirebaseDatabase.instance.reference().child('NongLanh');
+    _historyReference = FirebaseDatabase.instance.reference().child('history');
 
     // Lắng nghe sự thay đổi của door
     _doorReference.onValue.listen((DatabaseEvent event) {
@@ -97,13 +110,12 @@ class _MyHomePage extends State<MyHomePage> {
         doorValue = event.snapshot.value as bool;
         // Đưa giá trị mới vào stream
         _doorStreamController.add(doorValue);
-        // Kiểm tra khi cửa đóng thành mở
+
         if (doorValue) {
           DateTime currentTimeOpen = DateTime.now();
           _addTimeOpenToHistory(currentTimeOpen);
         }
 
-        // Kiểm tra khi cửa mở thành đóng
         else {
           DateTime currentTimeClose = DateTime.now();
           _addTimeToCloseHistory(currentTimeClose);
@@ -166,6 +178,17 @@ class _MyHomePage extends State<MyHomePage> {
         print('Không tìm thấy giá trị nl trong cơ sở dữ liệu.');
       }
     });
+<<<<<<< HEAD
+    //history open
+    _historyReference.child('open').onValue.listen((event) {
+      DataSnapshot snapshot = event.snapshot;
+      if (snapshot.value != null) {
+        Map<dynamic, dynamic> values = snapshot.value as Map<dynamic, dynamic>;
+
+        if (values != null) {
+          List<DateTime> newHistoryOpen = [];
+          values.forEach((key, value) {
+=======
     //histoy open
     _database.child('history').child('open').onChildAdded.listen((event) {
       DataSnapshot snapshots = event.snapshot;
@@ -178,10 +201,38 @@ class _MyHomePage extends State<MyHomePage> {
         if (snapshotValue is List) {
           List<dynamic> values = snapshotValue;
           for (var value in values) {
+>>>>>>> 7787000d372e6f9f306541dedf3db0912320d4e7
             if (value is String) {
               DateTime time = DateTime.parse(value);
-              historyOpen.add(time);
+              newHistoryOpen.add(time);
+            } else {
+              print('Giá trị không phải là kiểu String ${value}');
             }
+<<<<<<< HEAD
+          });
+          // Thêm các phần tử mới vào danh sách
+          historyOpen.addAll(newHistoryOpen);
+
+          // Cập nhật Stream để thông báo rằng có dữ liệu mới
+          _openStreamController.add(historyOpen);
+          setState(() {}); // Cập nhật UI khi dữ liệu đã được tải
+        } else {
+          print('Giá trị snapshot không phải là một Map<dynamic, dynamic>');
+        }
+      } else {
+        print('Giá trị snapshot là null');
+      }
+    });
+    //history close
+    _historyReference.child('close').onValue.listen((event) {
+      DataSnapshot snapshot = event.snapshot;
+      if (snapshot.value != null) {
+        Map<dynamic, dynamic> values = snapshot.value as Map<dynamic, dynamic>;
+
+        if (values != null) {
+          List<DateTime> newHistoryClose = [];
+          values.forEach((key, value) {
+=======
           }
         }
         _openStreamController.add(historyOpen);
@@ -201,17 +252,44 @@ class _MyHomePage extends State<MyHomePage> {
         if (snapshotValue is List) {
           List<dynamic> values = snapshotValue;
           for (var value in values) {
+>>>>>>> 7787000d372e6f9f306541dedf3db0912320d4e7
             if (value is String) {
               DateTime time = DateTime.parse(value);
-              historyClose.add(time);
+              newHistoryClose.add(time);
+            } else {
+              print('Giá trị không phải là kiểu String ${value}');
             }
-          }
+          });
+          // Thêm các phần tử mới vào danh sách
+          historyClose.addAll(newHistoryClose);
+
+          // Cập nhật Stream để thông báo rằng có dữ liệu mới
+          _closeStreamController.add(historyClose);
+          setState(() {}); // Cập nhật UI khi dữ liệu đã được tải
+        } else {
+          print('Giá trị snapshot không phải là một Map<dynamic, dynamic>');
         }
-        _closeStreamController.add(historyClose);
+      } else {
+        print('Giá trị snapshot là null');
       }
     });
   }
 
+<<<<<<< HEAD
+  @override
+  void dispose() {
+    // Đóng StreamControllers khi widget bị hủy
+    _openStreamController.close();
+    _closeStreamController.close();
+    _lr1StreamController.close();
+    _doorStreamController.close();
+    _lr2StreamController.close();
+    _lr3StreamController.close();
+    _nlStreamController.close();
+
+
+    super.dispose();
+=======
   void _addTimeToCloseHistory(DateTime time) {
     DatabaseReference closeRef = _database.child('history').child('close');
     closeRef.push().set(time.toIso8601String());
@@ -220,6 +298,7 @@ class _MyHomePage extends State<MyHomePage> {
   void _addTimeOpenToHistory(DateTime time) {
     DatabaseReference openRef = _database.child('history').child('open');
     openRef.push().set(time.toIso8601String());
+>>>>>>> 7787000d372e6f9f306541dedf3db0912320d4e7
   }
 
   final passoldController = TextEditingController();
@@ -351,6 +430,8 @@ class _MyHomePage extends State<MyHomePage> {
           );
         });
   }
+<<<<<<< HEAD
+=======
 
   Future<void> _showConfirmationDialog(BuildContext context) async {
     return showDialog<void>(
@@ -406,6 +487,7 @@ class _MyHomePage extends State<MyHomePage> {
     );
   }
 
+>>>>>>> 7787000d372e6f9f306541dedf3db0912320d4e7
   void _openDoor() {
     _database.update({'door': true});
   }
@@ -413,40 +495,55 @@ class _MyHomePage extends State<MyHomePage> {
   @override
   Widget timeDoorOpen(BuildContext context) {
     return StreamBuilder<List<DateTime>>(
-      stream: _MyHomePage.openStream,
+      stream: _openStreamController.stream,
       builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          List<DateTime> historyO = snapshot.data!;
-          return Column(
-            children: historyO.map((time) {
-              return Text('Thời gian mở: ${time.toLocal()}');
-            }).toList(),
-          );
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return CircularProgressIndicator(); // Hiển thị khi đang tải dữ liệu
         } else if (snapshot.hasError) {
           return Text('Error: ${snapshot.error}');
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Text('Không có dữ liệu');
         } else {
-          return CircularProgressIndicator(); // hoặc hiển thị một widget loading
+          // Hiển thị danh sách lịch sử mở cửa bằng ListView.builder
+          return SingleChildScrollView(
+            child: Column(
+              children: snapshot.data!.map((time) {
+                return ListTile(
+                  title: Text('Thời gian mở: ${time.toLocal()}'),
+                );
+              }).toList(),
+            ),
+          );
         }
       },
     );
   }
+<<<<<<< HEAD
+=======
 
   @override
+>>>>>>> 7787000d372e6f9f306541dedf3db0912320d4e7
   Widget timeDoorClose(BuildContext context) {
     return StreamBuilder<List<DateTime>>(
-      stream: _MyHomePage.closeStream,
+      stream: _closeStreamController.stream,
       builder: (context, snapshot) {
-        if (snapshot.hasData) {
-          List<DateTime> historyC = snapshot.data!;
-          return Column(
-            children: historyC.map((time) {
-              return Text('Thời gian đóng: ${time.toLocal()}');
-            }).toList(),
-          );
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return CircularProgressIndicator(); // Hiển thị khi đang tải dữ liệu
         } else if (snapshot.hasError) {
           return Text('Error: ${snapshot.error}');
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return Text('Không có dữ liệu');
         } else {
-          return CircularProgressIndicator(); // hoặc hiển thị một widget loading
+          // Hiển thị danh sách lịch sử mở cửa bằng ListView.builder
+          return SingleChildScrollView(
+            child: Column(
+              children: snapshot.data!.map((time) {
+                return ListTile(
+                  title: Text('Thời gian đóng: ${time.toLocal()}'),
+                );
+              }).toList(),
+            ),
+          );
         }
       },
     );
@@ -460,12 +557,74 @@ class _MyHomePage extends State<MyHomePage> {
             title: Text('Lịch sử đóng mở cửa'),
             content: Container(
               height: 500,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  timeDoorOpen(context),
-                  timeDoorClose(context),
-                ],
+              child: SingleChildScrollView(
+                controller: ScrollController(),
+                child: Column(
+                  children: [
+                    TextButton(onPressed: (){
+                      showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Text('Lịch sử mở cửa'),
+                              content: Container(
+                                height: 500,
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    children: [
+                                      timeDoorOpen(context)
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop(); // Đóng hộp thoại khi nhấn nút
+                                  },
+                                  child: Text('Đóng'),
+                                ),
+                              ],
+                            );
+                          }
+                      );
+
+                    },
+                        child: Text('Lịch sử mở cửa') ),
+                    TextButton(onPressed: (){
+                      showDialog(
+                          context: context,
+                          builder: (BuildContext context) {
+                            return AlertDialog(
+                              title: Text('Lịch sử đóng cửa'),
+                              content: Container(
+                                height: 500,
+                                child: SingleChildScrollView(
+                                  child: Column(
+                                    children: [
+                                      timeDoorClose(context)
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              actions: [
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.of(context).pop(); // Đóng hộp thoại khi nhấn nút
+                                  },
+                                  child: Text('Đóng'),
+                                ),
+                              ],
+                            );
+                          }
+                      );
+
+                    }, child: Text('Lịch sử đóng cửa')),
+
+                    // Add other functions if needed
+                    // timeDoorClose(context),
+                  ],
+                ),
               ),
             ),
             actions: [
@@ -523,6 +682,7 @@ class _MyHomePage extends State<MyHomePage> {
                       )
                     ],
                   ),
+                  // Text('${historyOpen.toString()} + ${historyOpen.toString()}'),
                   TextButton(
                       onPressed: () {
                         openshowdialog(context);
@@ -677,7 +837,7 @@ class _MyHomePage extends State<MyHomePage> {
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: Text('Trạng thái đèn'),
+            title: Text('Trạng thái nóng lạnh'),
             content: Container(
               height: 500,
               child: Column(
