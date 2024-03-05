@@ -1,21 +1,24 @@
 #include <Arduino.h>
-#include<ESP8266WiFi.h>
-#include "FirebaseESP8266.h"
+#include <WiFi.h> 
+#include <WiFiClient.h> 
+//#include <ESP8266WiFi.h>
+//#include "FirebaseESP8266.h"
+#include "FirebaseESP32.h"
 #include <ArduinoJson.h>
 #include "addons/TokenHelper.h"
 #include "addons/RTDBHelper.h"
 
-#include<SoftwareSerial.h> //Included SoftwareSerial Library
-//Started SoftwareSerial at RX and TX pin of ESP8266/NodeMCU
-SoftwareSerial s(3, 1);
+// #include<SoftwareSerial.h> //Included SoftwareSerial Library
+// //Started SoftwareSerial at RX and TX pin of ESP8266/NodeMCU
+// //SoftwareSerial s(3, 1);
 
-// #define WIFI_SSID "Dam Giang T5"
-// #define WIFI_PASSWORD "17181921"
+#define WIFI_SSID "Dam Giang T5"
+#define WIFI_PASSWORD "17181921"
 
 // #define WIFI_SSID "P1202"
 // #define WIFI_PASSWORD "88888888"
-#define WIFI_SSID "Bunn"
-#define WIFI_PASSWORD "20032022"
+// #define WIFI_SSID "Bunn"
+// #define WIFI_PASSWORD "20032022"
 
 
 #define FIREBASE_HOST "https://henhung01-default-rtdb.firebaseio.com/" //Thay bằng địa chỉ firebase của bạn
@@ -29,8 +32,9 @@ FirebaseAuth auth;
 FirebaseConfig config;
 
 void setup() {
-   //Serial.begin(115200);
-   s.begin(9600);
+   Serial.begin(115200);
+   Serial2.begin(9600);
+   //s.begin(9600);
   // Két nối wifi.
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.print("connecting");
@@ -65,9 +69,9 @@ void loop() {
     String passValue = firebaseData.stringData();
     char charArray[passValue.length() + 1];
     passValue.toCharArray(charArray, passValue.length() + 1);
-    s.write(charArray);
+    Serial2.write(charArray);
     delay(5000);
-    int data = s.read();
+    int data = Serial2.read();
     if(data){
       Firebase.setInt(firebaseData, "/led", 0);
     }

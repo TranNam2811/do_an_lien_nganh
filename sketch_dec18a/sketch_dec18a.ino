@@ -62,7 +62,7 @@ void setup() {
     Serial.println("Existing data in EEPROM: " + existingData);
     pass = existingData;
   }
-
+  pinMode(12, INPUT_PULLUP);
   pinMode(LDR, INPUT);
   sv.attach(11);
   sv.write(180);
@@ -90,7 +90,53 @@ int vitri;
 String hidden = "";
 int x = 0;
 void loop() {
+  if (digitalRead(12) != 0) {
+    if (open == false) {
+      for (vitri = 180; vitri > 0; vitri--) {
+        sv.write(vitri);
+        delay(15);
+      }
+      open = true;
+      delay(500);
+    }
+    if (open == true) {
+      if (time < 50) {
+        time += 1;
+        Serial.println(time);
+        delay(100);
+        if (digitalRead(LDR)) {
+          time = 0;
+        }
+      }
 
+      if (time == 50) {
+        for (vitri = 0; vitri < 180; vitri++) {
+          int ldr1 = digitalRead(LDR);
+          sv.write(vitri);
+          delay(20);
+          if (ldr1) {
+            time = 0;
+            for (int j = vitri; j >= 0; j--) {
+              sv.write(j);
+              Serial.println(j);
+              delay(15);
+            }
+            break;
+          }
+        }
+        if (vitri == 180) {
+          open = false;
+          close = true;
+          time = 0;
+          lcd.clear();
+          lcd.setCursor(0, 0);
+          lcd.print("closed!");
+          delay(2000);
+          lcd.clear();
+        }
+      }
+    }
+  }
   if (close) {
     lcd.setCursor(0, 0);
     lcd.print("Enter Password:");
@@ -225,11 +271,11 @@ void loop() {
         lcd.print(new_pass);
         Serial.println(new_pass);
       }
-      if (temp == 'A' && temp != 0 && new_pass.length() == 4) {
-        writeToEEPROM(new_pass, 0, 4);
+      if (temp == 'A' && temp != 0 && new_pass.length() == 8) {
+        writeToEEPROM(new_pass, 0, 8);
         pass = new_pass;
         Serial.println("Data written to EEPROM");
-        Serial.println(readFromEEPROM(0, 4));
+        Serial.println(readFromEEPROM(0, 8));
         delay(500);
         lcd.clear();
         lcd.setCursor(0, 0);
