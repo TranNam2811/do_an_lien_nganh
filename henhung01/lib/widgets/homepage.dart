@@ -293,6 +293,7 @@ class _MyHomePage extends State<MyHomePage> {
                       if (checkPass()) {
                         String newPassValue = passnewd1Controller.text;
                         _passReference.set(newPassValue);
+                        _ledReference.set(1);
                         // setState(() {
                         //   // _ledValue = newLedValue;
                         //   _passValue = newPassValue;

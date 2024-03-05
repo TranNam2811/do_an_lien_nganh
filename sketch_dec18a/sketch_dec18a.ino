@@ -55,11 +55,11 @@ void setup() {
   if (existingData.length() == 0) {
     // Nếu chưa có dữ liệu, lưu chuỗi vào EEPROM
     writeToEEPROM("12345678", 0, 8);
-    Serial.println("Data written to EEPROM");
+    //Serial.println("Data written to EEPROM");
     pass = "12345678";
   } else {
     // Nếu có dữ liệu, in ra Serial Monitor
-    Serial.println("Existing data in EEPROM: " + existingData);
+    //Serial.println("Existing data in EEPROM: " + existingData);
     pass = existingData;
   }
   pinMode(12, INPUT_PULLUP);
@@ -89,20 +89,28 @@ int time = 0;
 int vitri;
 String hidden = "";
 int x = 0;
+bool checkdoor = false;
 void loop() {
-  if (digitalRead(12) != 0) {
+  if (digitalRead(12) == 1) {
     if (open == false) {
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Opening!");
       for (vitri = 180; vitri > 0; vitri--) {
         sv.write(vitri);
         delay(15);
       }
+      close = false;
       open = true;
+      closed = false;
+      delay(2500);
+      lcd.clear();
       delay(500);
     }
     if (open == true) {
       if (time < 50) {
         time += 1;
-        Serial.println(time);
+        //Serial.println(time);
         delay(100);
         if (digitalRead(LDR)) {
           time = 0;
@@ -118,7 +126,7 @@ void loop() {
             time = 0;
             for (int j = vitri; j >= 0; j--) {
               sv.write(j);
-              Serial.println(j);
+              //Serial.println(j);
               delay(15);
             }
             break;
@@ -151,7 +159,7 @@ void loop() {
         delay(250);
         lcd.setCursor(0, 1);
         lcd.print(hidden);
-        Serial.println(str);
+        //Serial.println(str);
         if (str.length() == 8 && str == pass) {
           delay(600);
           lcd.clear();
@@ -192,7 +200,7 @@ void loop() {
         }
         lcd.setCursor(0, 1);
         lcd.print(hidden);
-        Serial.println(str);
+        //Serial.println(str);
       }
       if (temp == 'D' && temp != 0) {
         str = "";
@@ -207,7 +215,7 @@ void loop() {
     lcd.print("not closed!");
     if (time < 50) {
       time += 1;
-      Serial.println(time);
+      //Serial.println(time);
       delay(100);
       if (digitalRead(LDR)) {
         time = 0;
@@ -223,7 +231,7 @@ void loop() {
           time = 0;
           for (int j = vitri; j >= 0; j--) {
             sv.write(j);
-            Serial.println(j);
+            //Serial.println(j);
             delay(15);
           }
           break;
@@ -236,6 +244,11 @@ void loop() {
         lcd.clear();
         lcd.setCursor(0, 0);
         lcd.print("closed!");
+        if (checkdoor){
+          Serial.write('9');
+          checkdoor = false;
+        }
+        
         delay(2000);
         lcd.clear();
       }
@@ -254,7 +267,7 @@ void loop() {
         new_pass += temp;
         lcd.setCursor(0, 1);
         lcd.print(new_pass);
-        Serial.println(new_pass);
+       //Serial.println(new_pass);
       }
       if (temp == 'B' && temp != 0) {
         new_password = false;
@@ -269,13 +282,13 @@ void loop() {
         }
         lcd.setCursor(0, 1);
         lcd.print(new_pass);
-        Serial.println(new_pass);
+        //Serial.println(new_pass);
       }
       if (temp == 'A' && temp != 0 && new_pass.length() == 8) {
         writeToEEPROM(new_pass, 0, 8);
         pass = new_pass;
-        Serial.println("Data written to EEPROM");
-        Serial.println(readFromEEPROM(0, 8));
+        //Serial.println("Data written to EEPROM");
+        //Serial.println(readFromEEPROM(0, 8));
         delay(500);
         lcd.clear();
         lcd.setCursor(0, 0);
@@ -292,14 +305,36 @@ void loop() {
     data += receivedChar;
   }
   if (!data.equals("")) {
-    Serial.println("New Password: " + data);
-    lcd.clear();
-    lcd.println("changed pass!");
-    delay(5000);
-    lcd.clear();
-    writeToEEPROM(data, 0, 8);
-    pass = data;
-    Serial.write(1);
-    data = "";
+    if (data.length() == 8) {
+      //Serial.println("New Password: " + data);
+      lcd.clear();
+      lcd.println("changed pass!");
+      delay(500);
+      lcd.clear();
+      writeToEEPROM(data, 0, 8);
+      pass = data;
+      Serial.write(1);
+      data = "";
+    } else if (data.equals("ope")){
+      lcd.clear();
+      lcd.setCursor(0, 0);
+      lcd.print("Opening!");
+      for (vitri = 180; vitri > 0; vitri--) {
+        sv.write(vitri);
+        delay(15);
+      }
+      close = false;
+      open = true;
+      closed = false;
+      checkdoor = true;
+      delay(2500);
+      lcd.clear();
+      delay(500);
+      //Serial.println(data);
+      data = "";
+      //Serial.println(data);
+      
+
+    }
   }
 }
