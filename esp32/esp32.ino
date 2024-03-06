@@ -15,11 +15,11 @@
 // //Started SoftwareSerial at RX and TX pin of ESP8266/NodeMCU
 // //SoftwareSerial s(3, 1);
 
-// #define WIFI_SSID "Dam Giang T5"
-// #define WIFI_PASSWORD "17181921"
+#define WIFI_SSID "Dam Giang T5"
+#define WIFI_PASSWORD "17181921"
 
-#define WIFI_SSID "P1202"
-#define WIFI_PASSWORD "88888888"
+// #define WIFI_SSID "P1202"
+// #define WIFI_PASSWORD "88888888"
 // #define WIFI_SSID "Bunn"
 // #define WIFI_PASSWORD "20032022"
 
@@ -49,12 +49,12 @@ void setup() {
   Serial.print("connected: ");
   Serial.println(WiFi.localIP());
 
-Wire.begin();
-  Wire.beginTransmission(0x68);// địa chỉ của ds1307
-  Wire.write(0x07); // 
-  Wire.write(0x10); // 
+  Wire.begin();
+  Wire.beginTransmission(0x68);  // địa chỉ của ds1307
+  Wire.write(0x07);              //
+  Wire.write(0x10);              //
   Wire.endTransmission();
-  
+
   RTC.begin();
 
   config.api_key = FIREBASE_AUTH;
@@ -66,9 +66,14 @@ Wire.begin();
   config.token_status_callback = tokenStatusCallback;
   config.max_token_generation_retry = 5;
   Firebase.begin(&config, &auth);
-  // pinMode(fan, OUTPUT);
+  pinMode(12, OUTPUT);
+  pinMode(27, OUTPUT);
+  pinMode(25, OUTPUT);
 }
 bool checkdoor = false;
+
+
+
 void loop() {
   Firebase.getInt(firebaseData, "/led");
   int changed = firebaseData.intData();
@@ -88,21 +93,21 @@ void loop() {
 
   Firebase.getBool(firebaseData, "/door");
   bool door = firebaseData.boolData();
-  Serial.println(door);
+  //Serial.println(door);
   DateTime now = RTC.now();
-String x = String(int(now.hour()));
-  x+= ':';
-  x+= String(int(now.minute()));
-  x+= ':';
-  x+= String(int(now.second()));
-  x+= '-';
-  x+= String(int(now.day()));
-  x+= '/';
-  x+= String(int(now.month()));
-  x+= '/';
-  x+= String(int(now.year()));
+  String x = String(int(now.hour()));
+  x += ':';
+  x += String(int(now.minute()));
+  x += ':';
+  x += String(int(now.second()));
+  x += '-';
+  x += String(int(now.day()));
+  x += '/';
+  x += String(int(now.month()));
+  x += '/';
+  x += String(int(now.year()));
 
-  Serial.println(x);
+  //Serial.println(x);
   if (checkdoor == false) {
     if (door == true) {
       String pass = "ope";
@@ -112,8 +117,15 @@ String x = String(int(now.hour()));
       Serial2.write(charArray);
       checkdoor = true;
       Serial.println(checkdoor);
-      Firebase.pushString( firebaseData,"/open", x);
-      // Firebase.setInt( firebaseData,"/bbb", 100);
+      delay(2500);
+      //Firebase.pushString(firebaseData, "/open", x);
+    }
+    char data = Serial2.read();
+    Serial.println(data);
+    if (data == '5') {
+      Firebase.pushString(firebaseData, "/open", x);
+    } else if (data == '9') {
+      Firebase.pushString(firebaseData, "/close", x);
     }
   } else {
     char data = Serial2.read();
@@ -121,8 +133,32 @@ String x = String(int(now.hour()));
     if (data == '9') {
       checkdoor = false;
       Firebase.setBool(firebaseData, "/door", false);
-      Firebase.pushString( firebaseData,"/close", x);
+      Firebase.pushString(firebaseData, "/close", x);
       Serial.println(checkdoor);
     }
+  }
+
+  Firebase.getBool(firebaseData, "/R1");
+  bool R1 = firebaseData.boolData();
+  if (R1) {
+    digitalWrite(12, HIGH);
+  } else {
+    digitalWrite(21, LOW);
+  }
+
+  Firebase.getBool(firebaseData, "/R2");
+  bool R2 = firebaseData.boolData();
+  if (R2) {
+    digitalWrite(27, HIGH);
+  } else {
+    digitalWrite(27, LOW);
+  }
+
+  Firebase.getBool(firebaseData, "/R3");
+  bool R3 = firebaseData.boolData();
+  if (R3) {
+    digitalWrite(25, HIGH);
+  } else {
+    digitalWrite(25, LOW);
   }
 }

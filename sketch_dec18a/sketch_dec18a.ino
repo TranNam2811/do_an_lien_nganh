@@ -103,47 +103,12 @@ void loop() {
       close = false;
       open = true;
       closed = false;
+      checkdoor = true;
+      Serial.write('5');
       delay(2500);
       lcd.clear();
       delay(500);
-    }
-    if (open == true) {
-      if (time < 50) {
-        time += 1;
-        //Serial.println(time);
-        delay(100);
-        if (digitalRead(LDR)) {
-          time = 0;
-        }
-      }
-
-      if (time == 50) {
-        for (vitri = 0; vitri < 180; vitri++) {
-          int ldr1 = digitalRead(LDR);
-          sv.write(vitri);
-          delay(20);
-          if (ldr1) {
-            time = 0;
-            for (int j = vitri; j >= 0; j--) {
-              sv.write(j);
-              //Serial.println(j);
-              delay(15);
-            }
-            break;
-          }
-        }
-        if (vitri == 180) {
-          open = false;
-          close = true;
-          time = 0;
-          lcd.clear();
-          lcd.setCursor(0, 0);
-          lcd.print("closed!");
-          delay(2000);
-          lcd.clear();
-        }
-      }
-    }
+    } 
   }
   if (close) {
     lcd.setCursor(0, 0);
@@ -172,6 +137,8 @@ void loop() {
           close = false;
           open = true;
           closed = false;
+          checkdoor = true;
+          Serial.write('5');
           str = "";
           hidden = "";
           x = 0;
