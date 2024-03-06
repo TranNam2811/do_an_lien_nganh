@@ -29,16 +29,16 @@ class _MyHomePage extends State<MyHomePage> {
   static late StreamController<bool> _lr2StreamController = StreamController<bool>();
   static late StreamController<bool> _lr3StreamController = StreamController<bool>();
   static late StreamController<bool> _nlStreamController = StreamController<bool>();
-    static late StreamController<List<String>> _openStreamController = StreamController<List<String>>();
-   static Stream<List<String>> get openStream => _openStreamController.stream;
+  static late StreamController<List<String>> _openStreamController = StreamController<List<String>>();
+  static Stream<List<String>> get openStream => _openStreamController.stream;
 
-   static late StreamController<List<String>> _closeStreamController = StreamController<List<String>>();
-   static Stream<List<String>> get closeStream => _closeStreamController.stream;
+  static late StreamController<List<String>> _closeStreamController = StreamController<List<String>>();
+  static Stream<List<String>> get closeStream => _closeStreamController.stream;
   static  Stream<bool>? get doorStream => _doorStreamController.stream;
   static  Stream<bool>? get lr1Stream => _lr1StreamController.stream;
-    static Stream<bool>? get lr2Stream => _lr2StreamController.stream;
+  static Stream<bool>? get lr2Stream => _lr2StreamController.stream;
   static Stream<bool>? get lr3Stream => _lr3StreamController.stream;
-    static Stream<bool>? get nlStream => _nlStreamController.stream;
+  static Stream<bool>? get nlStream => _nlStreamController.stream;
   late DatabaseReference _ledReference;
   late DatabaseReference _passReference;
   late DatabaseReference _doorReference;
@@ -207,7 +207,8 @@ class _MyHomePage extends State<MyHomePage> {
           values.forEach((key, value) {
             if (value is String) {
               String time = value;
-               newHistoryOpen.add(time);
+              newHistoryOpen.add(time);
+              print('${value}');
             } else {
               print('Giá trị không phải là kiểu String ${value}');
             }
@@ -217,7 +218,7 @@ class _MyHomePage extends State<MyHomePage> {
           historyOpen.addAll(newHistoryOpen);
 
           // Cập nhật Stream để thông báo rằng có dữ liệu mới
-           _openStreamController.add(historyOpen);
+          _openStreamController.add(historyOpen);
           // _historyStreamController.add(historyOpen);
           setState(() {}); // Cập nhật UI khi dữ liệu đã được tải
         } else {
@@ -238,7 +239,7 @@ class _MyHomePage extends State<MyHomePage> {
           values.forEach((key, value) {
             if (value is String) {
               String time = value;
-               newHistoryClose.add(time);
+              newHistoryClose.add(time);
             } else {
               print('Giá trị không phải là kiểu String ${value}');
             }
@@ -248,7 +249,7 @@ class _MyHomePage extends State<MyHomePage> {
           historyClose.addAll(newHistoryClose);
 
           // Cập nhật Stream để thông báo rằng có dữ liệu mới
-           _closeStreamController.add(historyClose);
+          _closeStreamController.add(historyClose);
           setState(() {}); // Cập nhật UI khi dữ liệu đã được tải
         } else {
           print('Giá trị snapshot không phải là một Map<dynamic, dynamic>');
@@ -778,11 +779,11 @@ class _MyHomePage extends State<MyHomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Smart Home',
-        style:  TextStyle(
-          fontWeight: FontWeight.bold,
-          color: Colors.white,
-          fontSize: 30,
-          )
+            style:  TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 30,
+            )
         ),
         backgroundColor: Colors.blueAccent,
       ),
