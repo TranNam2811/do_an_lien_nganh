@@ -36,7 +36,10 @@ class DeviceService {
         'type': door.type
         // Add other fields as needed
       });
-      await _database.reference().child('users').child(_uid).child(door.id).set({'status': door.status,});
+      await _database.reference().child('users').child(_uid).child(door.id).set({
+        'status': door.status,
+        'password': door.password
+      });
       print('Device added successfully!');
     } catch (e) {
       print('Error adding device: $e');

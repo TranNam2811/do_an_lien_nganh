@@ -126,7 +126,13 @@ class _DeviceListWidget extends State<DeviceListWidget> {
       print('Error fetching combined devices: $e');
     }
   }
-
+  final Map<String, IconData> dIcons = {
+    'Door': Icons.door_back_door_outlined,
+    'Light': Icons.lightbulb_outline,
+    'Quạt': Icons.wind_power,
+    'Điều hòa': Icons.ac_unit_outlined,
+    'Nóng lạnh': Icons.thermostat,
+  };
   @override
   Widget build(BuildContext context) {
     return StreamBuilder<List<Device>>(
@@ -159,6 +165,13 @@ class _DeviceListWidget extends State<DeviceListWidget> {
                     padding: EdgeInsets.only(top: 10),
                     child: Column(
                       children: [
+                        Positioned(
+                          left: 10,
+                          top: 10,
+                          child: Icon(
+                              dIcons[devices[index].type]
+                          ),
+                        ),
                         Text(
                           devices[index].name,
                           style: TextStyle(fontSize: 16,fontWeight: FontWeight.bold),
@@ -233,23 +246,25 @@ class DeviceStatusWidget extends StatelessWidget {
           onPressed: (int index) {
             bool newStatus = index == 0;
             device.setStatus(newStatus);
-            _updateDeviceStatus(device.id, newStatus);
+            _updateDeviceStatus(device, newStatus);
           },
         );
       },
     );
   }
 
-  void _updateDeviceStatus(String deviceId, bool newStatus) {
+  void _updateDeviceStatus(Device device, bool newStatus) {
     final User? user = FirebaseAuth.instance.currentUser;
     final _uid = user!.uid;
     // Implement logic to update status in Firebase Realtime Database
-    FirebaseDatabase.instance
-        .reference()
-        .child('users')
-        .child(_uid)
-        .child(deviceId)
-        .child('status')
-        .set(newStatus);
+    if (device.type != "Door" || newStatus) {
+      FirebaseDatabase.instance
+          .reference()
+          .child('users')
+          .child(_uid)
+          .child(device.id)
+          .child('status')
+          .set(newStatus);
+    }
   }
 }

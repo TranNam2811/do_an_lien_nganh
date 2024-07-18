@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_home/Device/device.dart';
+import 'package:smart_home/widgets/door_history.dart';
 
 class SettingDevice extends StatefulWidget {
   Device device;
@@ -28,7 +29,7 @@ class _SettingDeviceState extends State<SettingDevice> {
             fontSize: 30,
           ),
         ),
-        backgroundColor: Colors.black26,
+        backgroundColor: Colors.blueGrey,
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -47,7 +48,12 @@ class _SettingDeviceState extends State<SettingDevice> {
                 title: Text('View Access History'),
                 onTap: () {
                   // Handle view access history
-                  _viewAccessHistory(widget.device.id);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DoorHistory(device: widget.device),
+                    ),
+                  );
                 },
               ),
             if (widget.device.type.toLowerCase().contains('door'))

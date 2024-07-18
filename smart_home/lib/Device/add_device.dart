@@ -17,6 +17,14 @@ class SelectDeviceTypePage extends StatelessWidget {
     'Nóng lạnh',
   ];
 
+  final Map<String, IconData> deviceIcons = {
+    'Door': Icons.door_back_door_outlined,
+    'Light': Icons.lightbulb_outline,
+    'Quạt': Icons.wind_power,
+    'Điều hòa': Icons.ac_unit_outlined,
+    'Nóng lạnh': Icons.thermostat,
+  };
+
   void _navigateToAddDevicePage(BuildContext context, String deviceType) {
     Navigator.pushReplacement(
       context,
@@ -30,20 +38,55 @@ class SelectDeviceTypePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Thêm thiết bị'),
+        title: Text(
+          'Thêm thiết bị',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+            fontSize: 28,
+          ),
+        ),
+        backgroundColor: Colors.blueGrey,
       ),
-      body: ListView.builder(
-        itemCount: deviceTypes.length,
-        itemBuilder: (context, index) {
-          return Card(
-            child: ListTile(
-              title: Text(deviceTypes[index]),
+      body: Container(
+        padding: EdgeInsets.all(10),
+        child: GridView.builder(
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 10.0,
+            mainAxisSpacing: 10.0,
+          ),
+          itemCount: deviceTypes.length,
+          itemBuilder: (context, index) {
+            String deviceType = deviceTypes[index];
+            return GestureDetector(
               onTap: () {
-                _navigateToAddDevicePage(context, deviceTypes[index]);
+                _navigateToAddDevicePage(context, deviceType);
               },
-            ),
-          );
-        },
+              child: Card(
+                color: Colors.white38,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      color: Colors.blueGrey,
+                      deviceIcons[deviceType],
+                      size: 50,
+                    ),
+                    SizedBox(height: 10),
+                    Text(
+                      deviceType,
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -60,7 +103,7 @@ class AddDevicePage extends StatefulWidget {
 
 class _AddDevicePageState extends State<AddDevicePage> {
   TextEditingController nameController = TextEditingController();
-  TextEditingController passwordController = TextEditingController();
+  TextEditingController doorpasswordController = TextEditingController();
   TextEditingController emailpasswordController = TextEditingController();
   bool status = false;
   final DeviceService _deviceService = DeviceService();
@@ -100,7 +143,7 @@ class _AddDevicePageState extends State<AddDevicePage> {
   void dispose() {
     nameController.dispose();
     if (widget.deviceType == 'Door') {
-      passwordController.dispose();
+      doorpasswordController.dispose();
     }
     _mdnsClient?.stop();
     super.dispose();
@@ -110,14 +153,24 @@ class _AddDevicePageState extends State<AddDevicePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Thiết lập ${widget.deviceType}'),
+        title: Text('Thiết lập ${widget.deviceType}',
+          style: TextStyle(
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+          fontSize: 28,
+        ),
+      ),
+      backgroundColor: Colors.blueGrey,
         actions: [
           if(isconnected == true)
             TextButton(
               onPressed: () {
+                _sendSaveInfoToESP32(selectedDevice!);
                 _saveDevice();
               },
-              child: Text('Thêm thiết bị'),
+              child: Text('Thêm thiết bị',
+                style: TextStyle(color: Colors.white),
+              ),
             ),
         ],
       ),
@@ -135,11 +188,6 @@ class _AddDevicePageState extends State<AddDevicePage> {
               if (widget.deviceType == 'Door')
                 Column(
                   children: [
-                    SizedBox(height: 10.0),
-                    TextField(
-                      controller: passwordController,
-                      decoration: InputDecoration(labelText: 'Door password'),
-                    ),
                     SizedBox(height: 10.0),
                     ElevatedButton(
                       onPressed: _startMdnsSearch,
@@ -225,7 +273,7 @@ class _AddDevicePageState extends State<AddDevicePage> {
 
   void _saveDevice() async {
     String name = nameController.text.trim();
-    String? password = widget.deviceType == 'Door' ? passwordController.text.trim() : null;
+    String? password = widget.deviceType == 'Door' ? doorpasswordController.text.trim() : null;
 
     if (name.isNotEmpty && (password != null ? password.isNotEmpty : true) && (widget.deviceType != 'Door' || selectedDevice != null)) {
       try {
@@ -312,6 +360,34 @@ class _AddDevicePageState extends State<AddDevicePage> {
     }
   }
 
+  Future<void> _sendDoorPASSWORDToESP32(String esp32Name, String password) async {
+    final url = 'http://$esp32Name.local/set_door-password?door-password=$password';
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        print('UID set successfully on ESP32');
+      } else {
+        print('Failed to set UID on ESP32');
+      }
+    } catch (e) {
+      print('Error setting UID on ESP32: $e');
+    }
+  }
+
+  Future<void> _sendSaveInfoToESP32(String esp32Name) async {
+    final url = 'http://$esp32Name.local/save-data?save=save';
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        print('UID set successfully on ESP32');
+      } else {
+        print('Failed to set UID on ESP32');
+      }
+    } catch (e) {
+      print('Error setting UID on ESP32: $e');
+    }
+  }
+
   Future<void> _checkESP32Response(String esp32Name, String uid) async {
     final url = 'http://$esp32Name.local/check_uid?uid=$uid'; // Đổi thành endpoint kiểm tra UID
     try {
@@ -366,9 +442,16 @@ class _AddDevicePageState extends State<AddDevicePage> {
                 TextField(
                   controller: passwordController,
                   decoration: InputDecoration(
-                    labelText: 'Mật khẩu',
+                    labelText: 'Email password',
                   ),
                   obscureText: true,
+                ),
+                TextField(
+                  controller: doorpasswordController,
+                  decoration: InputDecoration(labelText: 'Door Password'),
+                  obscureText: true,
+                  keyboardType: TextInputType.number,
+                  maxLength: 8,
                 ),
               ],
             ),
@@ -383,8 +466,16 @@ class _AddDevicePageState extends State<AddDevicePage> {
             TextButton(
               child: Text('Kết nối'),
               onPressed: () async {
+                final passwordRegExp = RegExp(r'^\d{8}$');
+                if (!passwordRegExp.hasMatch(doorpasswordController.text)) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Password must be exactly 8 digits.')),
+                  );
+                  return;
+                }
                 String email = emailController.text.trim();
                 String password = passwordController.text.trim();
+                String doorpassword = doorpasswordController.text;
                 Navigator.of(context).pop(); // Đóng hộp thoại
                 User? user = await signInWithEmailAndPassword(email, password);
                 if (user != null) {
@@ -393,6 +484,7 @@ class _AddDevicePageState extends State<AddDevicePage> {
                   });
                   await _sendUSERToESP32(selectedDevice!, email);
                   await _sendPASSWORDToESP32(selectedDevice!, password);
+                  await _sendDoorPASSWORDToESP32(selectedDevice!, doorpassword);
                   await _checkESP32Response(selectedDevice!, user.uid);
                 } else {
                   setState(() {
