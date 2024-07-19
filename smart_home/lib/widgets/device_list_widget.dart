@@ -60,7 +60,8 @@ class _DeviceListWidget extends State<DeviceListWidget> {
         devices.add({
           'id': doc['id'],
           'name': doc['name'],
-          'type': doc['type']
+          'type': doc['type'],
+          'espid': doc['espid']  // Thêm espid vào danh sách thiết bị
         });
       }
     } catch (e) {
@@ -69,10 +70,14 @@ class _DeviceListWidget extends State<DeviceListWidget> {
     return devices;
   }
 
-  Future<bool?> getDeviceStatus(String uid, String deviceId) async {
+  Future<bool?> getDeviceStatus(String uid, String espid, String deviceId, String type) async {
     try {
-      DatabaseReference ref =
-      FirebaseDatabase.instance.reference().child('users').child(uid).child(deviceId);
+      DatabaseReference ref;
+      if (type == 'Door') {
+        ref = _database.reference().child('users').child(uid).child(deviceId);
+      } else {
+        ref = _database.reference().child('users').child(uid).child(espid).child(deviceId);
+      }
       DatabaseEvent event = await ref.once();
       DataSnapshot snapshot = event.snapshot;
       if (snapshot.value != null && snapshot.value is Map) {
@@ -94,23 +99,23 @@ class _DeviceListWidget extends State<DeviceListWidget> {
 
       List<Device> deviceList = [];
       for (var device in devices) {
-        bool? status = await getDeviceStatus(_uid, device['id']);
+        bool? status = await getDeviceStatus(_uid, device['espid'], device['id'], device['type']);
         // Create Device instance with StreamController
         Device newDevice = Device(
           id: device['id'],
           name: device['name'],
+          espid: device['espid'],
           status: status ?? false,
           type: device['type'],
         );
         // Listen to status changes
-        _database
-            .reference()
-            .child('users')
-            .child(_uid)
-            .child(device['id'])
-            .child('status')
-            .onValue
-            .listen((event) {
+        DatabaseReference ref;
+        if (device['type'] == 'Door') {
+          ref = _database.reference().child('users').child(_uid).child(device['id']).child('status');
+        } else {
+          ref = _database.reference().child('users').child(_uid).child(device['espid']).child(device['id']).child('status');
+        }
+        ref.onValue.listen((event) {
           DataSnapshot snapshot = event.snapshot;
           bool? newStatus = snapshot.value as bool?;
           if (newStatus != null) {
@@ -256,15 +261,29 @@ class DeviceStatusWidget extends StatelessWidget {
   void _updateDeviceStatus(Device device, bool newStatus) {
     final User? user = FirebaseAuth.instance.currentUser;
     final _uid = user!.uid;
-    // Implement logic to update status in Firebase Realtime Database
-    if (device.type != "Door" || newStatus) {
-      FirebaseDatabase.instance
+
+    DatabaseReference ref;
+    if (device.type == 'Door' && newStatus) {
+      ref = FirebaseDatabase.instance
           .reference()
           .child('users')
           .child(_uid)
           .child(device.id)
-          .child('status')
-          .set(newStatus);
+          .child('status');
+      ref.set(newStatus);
     }
+    if(device.type != 'Door') {
+      ref = FirebaseDatabase.instance
+          .reference()
+          .child('users')
+          .child(_uid)
+          .child(device.espid)
+          .child(device.id)
+          .child('status');
+      ref.set(newStatus);
+    }
+
+
   }
+
 }

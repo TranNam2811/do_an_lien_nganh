@@ -55,7 +55,6 @@ bool isWifiConnected = false;
 void handleSetUSEREMAILRequest(AsyncWebServerRequest *request) {
   if (request->hasParam("user-email")) {
     USER_EMAIL = request->getParam("user-email")->value();
-    setFirebaseInfo();
     request->send(200, "text/plain", "USER_EMAIL set to " + USER_EMAIL);
   } else {
     request->send(400, "text/plain", "Missing USER_EMAIL parameter");
@@ -65,8 +64,28 @@ void handleSetUSEREMAILRequest(AsyncWebServerRequest *request) {
 void handleSetUSERPASSWORDRequest(AsyncWebServerRequest *request) {
   if (request->hasParam("user-password")) {
     USER_PASSWORD = request->getParam("user-password")->value();
-    setFirebaseInfo();
     request->send(200, "text/plain", "USER_PASSWORD set to " + USER_PASSWORD);
+  } else {
+    request->send(400, "text/plain", "Missing USER_PASSWORD parameter");
+  }
+}
+
+void handleSetDoorPassWordRequest(AsyncWebServerRequest *request) {
+  if (request->hasParam("door-password")) {
+    PASS = request->getParam("door-password")->value();
+    request->send(200, "text/plain", "USER_PASSWORD set to " + PASS);
+  } else {
+    request->send(400, "text/plain", "Missing USER_PASSWORD parameter");
+  }
+}
+
+void handleSaveDataRequest(AsyncWebServerRequest *request) {
+  if (request->hasParam("save")) {
+    if (request->getParam("save")->value() == "save") {
+      setFirebaseInfo();
+      setPassInfo(PASS);
+      request->send(200, "text/plain", "USER_PASSWORD set to " + PASS);
+    }
   } else {
     request->send(400, "text/plain", "Missing USER_PASSWORD parameter");
   }
@@ -78,11 +97,6 @@ void handleCheckUIDRequest(AsyncWebServerRequest *request) {
   connectFirebase();
   if (currentUID.equals(UID)) {
     request->send(200, "text/plain", "ok");
-    if (Firebase.setString(fbdo, userPath + "/esp32-door/password", PASS)) {
-      Serial.println("change ok");
-    } else {
-      Serial.println("fail");
-    }
   } else {
     request->send(400, "text/plain", "UID does not match");
   }
@@ -177,6 +191,7 @@ const int MAX_NETWORKS = 20;        // Số lượng mạng tối đa để lưu
 String wifiNetworks[MAX_NETWORKS];  // Mảng để lưu các SSID
 int numNetworks = 0;                // Số lượng mạng tìm được
 bool isConnectedWifi;
+
 void scanWifi() {
   WiFi.mode(WIFI_STA);
   //WiFi.disconnect();
@@ -280,7 +295,7 @@ bool connectFirebase() {
     //Firebase.signUp(&config, &auth, USER_EMAIL, USER_PASSWORD);
     UID = String(auth.token.uid.c_str());
     userPath = "/users/" + UID;
-    
+
     if (Firebase.ready()) {
       Serial.println(userPath);
       return true;
@@ -403,6 +418,8 @@ void setup() {
   // server.on("/get_uid", HTTP_GET, handleGetUIDRequest);
   server.on("/set_user-email", HTTP_GET, handleSetUSEREMAILRequest);
   server.on("/set_user-password", HTTP_GET, handleSetUSERPASSWORDRequest);
+  server.on("/set_door-password", HTTP_GET, handleSetDoorPassWordRequest);
+  server.on("/save-data", HTTP_GET, handleSaveDataRequest);
   server.on("/check_uid", HTTP_GET, handleCheckUIDRequest);
 
   // Bắt đầu server
@@ -878,8 +895,4 @@ void loop() {
       }
     }
   }
-<<<<<<< HEAD
 }
-=======
-}
->>>>>>> 3772dc5e43d4fcbeb028568a5388a95939131066

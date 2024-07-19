@@ -1,307 +1,409 @@
-#include <Wire.h>
-#include "RTClib.h"
-#include <Keypad.h>
-#include <LiquidCrystal_I2C.h>
-// #include <EEPROMWearLevel.h>
-#include <EEPROM.h>
-#include <Servo.h>
-// EEPROMWearLevel eeprom;
+#include <WiFi.h>
+#include <ESPAsyncWebServer.h>
+#include <ESPmDNS.h>
+#include <ArduinoJson.h>
+#include "FirebaseESP32.h"
+#include <Preferences.h>
+#include <NTPClient.h>
+#include <TimeLib.h>
 
-LiquidCrystal_I2C lcd(0x27, 16, 2);
+String WIFI_SSID = "";
+String WIFI_PASSWORD = "";
 
+#define FIREBASE_HOST "https://smart-home-87097-default-rtdb.asia-southeast1.firebasedatabase.app/"
+#define FIREBASE_AUTH "AIzaSyAn9GxD1KR6PuzDwuOXuBa4YY035a6hfgY"
+String USER_EMAIL = "";
+String USER_PASSWORD = "";
+String UID = "";
+String userPath = "";
+FirebaseData fbdo;
+FirebaseAuth auth;
+FirebaseConfig config;
 
-const byte rows = 4;     //số hàng
-const byte columns = 4;  //số cột
+///////////////////------------------------ Xử lí kết nối -------------------------------/////////////////////////////////////////////////////////////
+////// WiFi --- Firebase
+bool connectToWiFi() {
+  Serial.println();
+  Serial.print("Connecting to ");
+  Serial.println(WIFI_SSID);
+  // lcd.clear();
+  // lcd.setCursor(0, 0);
+  // lcd.print("Connecting Wifi");
+  // lcd.setCursor(0, 1);
+  // lcd.print(WIFI_SSID);
+  WiFi.disconnect();
+  WiFi.begin(WIFI_SSID.c_str(), WIFI_PASSWORD.c_str());
+  String dot = "";
+  int timer = 0;
+  bool iscnt = true;
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    timer++;
+    dot += ".";
+    // if (dot.length() == 4) {
+    //   dot = "";
+    //   lcd.clear();
+    //   lcd.setCursor(0, 0);
+    //   lcd.print("Connecting Wifi");
+    // }
+    // lcd.setCursor(0, 1);
+    // lcd.print(WIFI_SSID + dot);
+    Serial.print(".");
+    if (timer == 30) {
+      iscnt = false;
+      //WiFi.disconnect(true);
+      // lcd.clear();
+      // lcd.setCursor(0, 0);
+      // lcd.print("Unable to/nconnect WiFi");
+      // delay(2000);
+      // lcd.clear();
+      break;
+    }
+  }
+  if (iscnt) {
+    Serial.println("");
+    Serial.println("WiFi connected");
+    Serial.print("IP address: ");
+    Serial.println(WiFi.localIP());
 
-int holdDelay = 700;  //Thời gian trễ để xem là nhấn 1 nút nhằm tránh nhiễu
-int n = 3;            //
-int state = 0;        //nếu state =0 ko nhấn,state =1 nhấn thời gian nhỏ , state = 2 nhấn giữ lâu
-char key = 0;
-//Định nghĩa các giá trị trả về
-char keys[rows][columns] = {
-  { '1', '2', '3', 'A' },
-  { '4', '5', '6', 'B' },
-  { '7', '8', '9', 'C' },
-  { '*', '0', '#', 'D' },
-};
-byte rowPins[rows] = { 2, 3, 4, 5 };  //Cách nối chân với Arduino
-byte columnPins[columns] = { 6, 7, 8, 9 };
-//cài đặt thư viện keypad
-Keypad keypad = Keypad(makeKeymap(keys), rowPins, columnPins, rows, columns);
+    // lcd.clear();
+    // lcd.setCursor(0, 0);
+    // lcd.print("WiFi connected");
+    // lcd.setCursor(0, 1);
+    // lcd.print("IP: ");
+    // lcd.print(WiFi.localIP());
+    // lcd.clear();
+    return true;
+  }
+  return false;  // Trả về false nếu không kết nối được WiFi
+}
+bool hasCharacters(String str) {
+  return str.length() > 0;
+}
+bool connectFirebase() {
+  if (hasCharacters(FIREBASE_AUTH) && hasCharacters(FIREBASE_HOST) && hasCharacters(USER_EMAIL) && hasCharacters(USER_PASSWORD)) {
+    // Cấu hình Firebase
+    config.api_key = FIREBASE_AUTH;
+    config.database_url = FIREBASE_HOST;
+    auth.user.email = USER_EMAIL;
+    auth.user.password = USER_PASSWORD;
+    // Khởi động Firebase
+    Firebase.begin(&config, &auth);
+    Firebase.reconnectWiFi(true);
+    //Firebase.signUp(&config, &auth, USER_EMAIL, USER_PASSWORD);
+    UID = String(auth.token.uid.c_str());
+    userPath = "/users/" + UID + "/esp32-led";
 
-int LDR = 10;
-Servo sv;
-String pass;
+    if (Firebase.ready()) {
+      Serial.println(userPath);
+      return true;
+    } else {
+      return false;
+    }
+  } else {
+    return false;
+  }
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void writeToEEPROM(String data, int address, int length) {
-  for (int i = 0; i < length; i++) {
-    EEPROM.write(address + i, data[i]);
+///////////////////------------------------- Lưu trữ dữ thông tin --------------------------////////////////////////////////////////////////////////////
+// Tạo EEPROM
+Preferences eeprom;
+
+int pin[5] = { 19, 5, 16, 0, 15 };
+int spin[5];
+String pinName[5] = { "pin1", "pin2", "pin3", "pin4", "pin5" };
+String ledName[5];
+String pinNotUsed[5];
+String pinUsed[5];
+int numPinNotUsed = 0;
+int numPinUsed = 0;
+int numLed = 0;
+int findIndex(String arr[], String value) {
+  for (int i = 0; i < 5; i++) {
+    if (arr[i] == value) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+void getLed() {
+  numLed = 0;
+  eeprom.begin("led", false);
+  for (int i = 0; i <= 4; i++) {
+    bool check = eeprom.isKey(String(pin[i]).c_str()) && eeprom.getString(String(pin[i]).c_str()).length() > 0;
+    if (check) {
+      ledName[i] = eeprom.getString(String(pin[i]).c_str());
+      numLed++;
+    } else {
+      eeprom.putString(String(pin[i]).c_str(), "");
+    }
+  }
+  eeprom.end();
+}
+void setLed(String spin, String ledname) {
+  int i = findIndex(pinName, spin);
+  eeprom.begin("led", false);
+  eeprom.putString(String(pin[i]).c_str(), ledname);
+  eeprom.end();
+}
+void unSetLed(String spin) {
+  int i = findIndex(pinName, spin);
+  eeprom.begin("led", false);
+  eeprom.putString(String(pin[i]).c_str(), "");
+  eeprom.end();
+}
+void getPin() {
+  numPinNotUsed = 0;
+  numPinUsed = 0;
+  eeprom.begin("pin", false);
+  for (int i = 0; i <= 4; i++) {
+    if (eeprom.isKey(pinName[i].c_str())) {
+      if (eeprom.getBool(pinName[i].c_str())) {
+        pinUsed[numPinUsed] = pinName[i];
+        numPinUsed++;
+      } else {
+        pinNotUsed[numPinNotUsed] = pinName[i];
+        numPinNotUsed++;
+      }
+    } else {
+      eeprom.putBool(pinName[i].c_str(), false);
+    }
+  }
+  eeprom.end();
+}
+void setPin(String pinname) {
+  eeprom.begin("pin", false);
+  eeprom.putBool(pinname.c_str(), true);
+  eeprom.end();
+}
+void unSetPin(String pinname) {
+  eeprom.begin("pin", false);
+  eeprom.putBool(pinname.c_str(), false);
+  eeprom.end();
+}
+bool setWiFiInfo() {
+  if (hasCharacters(WIFI_SSID) && hasCharacters(WIFI_PASSWORD)) {
+    eeprom.begin("my-app", false);
+    eeprom.putString("ssid", WIFI_SSID);
+    eeprom.putString("password", WIFI_PASSWORD);
+    eeprom.end();
+    return true;
+    Serial.println("ok");
+  } else {
+    return false;
+  }
+}
+bool checkWifiInfo() {
+  eeprom.begin("my-app", true);
+  bool check = eeprom.isKey("ssid") && eeprom.isKey("password") && eeprom.getString("ssid").length() > 0 && eeprom.getString("password").length() > 0;
+  if (check) {
+    WIFI_SSID = eeprom.getString("ssid");
+    WIFI_PASSWORD = eeprom.getString("password");
+  }
+  eeprom.end();
+  return check;
+}
+bool setFirebaseInfo() {
+  if (hasCharacters(USER_EMAIL) && hasCharacters(USER_PASSWORD)) {
+    eeprom.begin("my-app", false);
+    eeprom.putString("user_email", USER_EMAIL);
+    eeprom.putString("user_password", USER_PASSWORD);
+    eeprom.end();
+    return true;
+  } else {
+    return false;
+  }
+}
+bool checkFirebaseInfo() {
+  eeprom.begin("my-app", true);
+  bool check = eeprom.isKey("user_email") && eeprom.isKey("user_password") && eeprom.getString("user_email").length() > 0 && eeprom.getString("user_password").length() > 0;
+  if (check) {
+    USER_EMAIL = eeprom.getString("user_email");
+    USER_PASSWORD = eeprom.getString("user_password");
+  }
+  eeprom.end();
+  return check;
+}
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+/////////------------------------- Xử lí kết nối server -----------------------------------------//////////////////////////////////////////////////////////////
+// Tạo một đối tượng AsyncWebServer trên cổng 80
+AsyncWebServer server(80);
+
+void handleGetPinRequest(AsyncWebServerRequest *request) {
+  request->send(200, "text/plain", pinName[0] + " " + pinName[1] + " " + pinName[2] + " " + pinName[3] + " " + pinName[4]);
+}
+
+void handleGetPinNotUsedRequest(AsyncWebServerRequest *request) {
+  StaticJsonDocument<200> jsonDoc;
+  JsonArray pinArray = jsonDoc.createNestedArray("pins");
+  getPin();
+  for (int i = 0; i < numPinNotUsed; i++) {
+    pinArray.add(pinNotUsed[i]);
+  }
+  String jsonString;
+  serializeJson(jsonDoc, jsonString);
+  request->send(200, "application/json", jsonString);
+}
+void handleSetLedRequest(AsyncWebServerRequest *request) {
+  if (request->hasParam("led")) {
+    String led = request->getParam("led")->value();
+    setLed(sPin,led);
+    request->send(200, "text/plain", "add pin" + led);
+  } else {
+    request->send(400, "text/plain", "fail");
+  }
+}
+void handleUnSetLedRequest(AsyncWebServerRequest *request) {
+  if (request->hasParam("pin")) {
+    String pin = request->getParam("pin")->value();
+    unSetPin(pin);
+    request->send(200, "text/plain", "remove pin" + pin);
+  } else {
+    request->send(400, "text/plain", "fail");
+  }
+}
+String sPin = "";
+void handleSetPinRequest(AsyncWebServerRequest *request) {
+  if (request->hasParam("pin")) {
+    sPin = request->getParam("pin")->value();
+    setPin(sPin);
+    request->send(200, "text/plain", "add pin" + sPin);
+  } else {
+    request->send(400, "text/plain", "fail");
   }
 }
 
-String readFromEEPROM(int address, int length) {
-  String result = "";
-  for (int i = 0; i < length; i++) {
-    char ch = EEPROM.read(address + i);
-    result += ch;
+void handleUnSetPinRequest(AsyncWebServerRequest *request) {
+  if (request->hasParam("pin")) {
+    String pin = request->getParam("pin")->value();
+    unSetPin(pin);
+    request->send(200, "text/plain", "remove pin" + pin);
+  } else {
+    request->send(400, "text/plain", "fail");
   }
-  return result;
 }
+void handleSaveDataRequest(AsyncWebServerRequest *request) {
+  if (request->hasParam("save")) {
+    if (request->getParam("save")->value() == "save") {
+      setFirebaseInfo();
+      request->send(200, "text/plain", "USER_PASSWORD set to ");
+    }
+  } else {
+    request->send(400, "text/plain", "Missing USER_PASSWORD parameter");
+  }
+}
+void handleSetUSEREMAILRequest(AsyncWebServerRequest *request) {
+  if (request->hasParam("user-email")) {
+    USER_EMAIL = request->getParam("user-email")->value();
+    request->send(200, "text/plain", "USER_EMAIL set to " + USER_EMAIL);
+  } else {
+    request->send(400, "text/plain", "Missing USER_EMAIL parameter");
+  }
+}
+
+void handleSetUSERPASSWORDRequest(AsyncWebServerRequest *request) {
+  if (request->hasParam("user-password")) {
+    USER_PASSWORD = request->getParam("user-password")->value();
+    request->send(200, "text/plain", "USER_PASSWORD set to " + USER_PASSWORD);
+  } else {
+    request->send(400, "text/plain", "Missing USER_PASSWORD parameter");
+  }
+}
+// Xử lý yêu cầu kiểm tra UID của thiết bị
+void handleCheckUIDRequest(AsyncWebServerRequest *request) {
+  String currentUID = request->getParam("uid")->value();
+  connectFirebase();
+  if (currentUID.equals(UID)) {
+    request->send(200, "text/plain", "ok");
+
+  } else {
+    request->send(400, "text/plain", "UID does not match");
+  }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void setup() {
-  Serial.begin(9600);  //bật serial, baudrate 9600
-  String existingData = readFromEEPROM(0, 8);
-
-  if (existingData.length() == 0) {
-    // Nếu chưa có dữ liệu, lưu chuỗi vào EEPROM
-    writeToEEPROM("12345678", 0, 8);
-    //Serial.println("Data written to EEPROM");
-    pass = "12345678";
+  Serial.begin(115200);
+  bool wf;
+  // Kết nối WiFi
+  if (checkWifiInfo()) {
+    Serial.println(WIFI_SSID);
+    Serial.println(WIFI_PASSWORD);
+    wf = connectToWiFi();
   } else {
-    // Nếu có dữ liệu, in ra Serial Monitor
-    //Serial.println("Existing data in EEPROM: " + existingData);
-    pass = existingData;
+    setWiFiInfo();
   }
-  pinMode(12, INPUT_PULLUP);
-  pinMode(LDR, INPUT);
-  sv.attach(11);
-  sv.write(180);
-  lcd.init();
-  lcd.backlight();   //đèn nền bật
-  lcd.begin(16, 2);  // cài đặt số cột và số dòng
-  // in logo lên màn hình
-  lcd.print("nhom 4");
-  lcd.setCursor(0, 1);
-  lcd.print("PHENIKAA");
-  delay(2500);
-  lcd.clear();
-}
-String str = "";
-String new_pass = "";
-//String passWord = "1234";
-bool close = true;
-bool open = false;
-bool new_password = false;
-String data = "";
-bool closed = true;
-int ldr;
-int time = 0;
-int vitri;
-String hidden = "";
-int x = 0;
-bool checkdoor = false;
-void loop() {
-  if (digitalRead(12) == 1) {
-    if (open == false) {
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("Opening!");
-      for (vitri = 180; vitri > 0; vitri--) {
-        sv.write(vitri);
-        delay(15);
-      }
-      close = false;
-      open = true;
-      closed = false;
-      checkdoor = true;
-      Serial.write('5');
-      delay(2500);
-      lcd.clear();
-      delay(500);
-    } 
-  }
-  if (close) {
-    lcd.setCursor(0, 0);
-    lcd.print("Enter Password:");
-    char temp = keypad.getKey();
 
-    if ((int)keypad.getState() == PRESSED) {
-      if ((char)temp != 'A' && (char)temp != 'B' && (char)temp != 'C' && (char)temp != 'D' && temp != 0) {
-        str += temp;
-        hidden += "*";
-        lcd.setCursor(x++, 1);
-        lcd.print(temp);
-        delay(250);
-        lcd.setCursor(0, 1);
-        lcd.print(hidden);
-        //Serial.println(str);
-        if (str.length() == 8 && str == pass) {
-          delay(600);
-          lcd.clear();
-          lcd.setCursor(0, 0);
-          lcd.print("Opening!");
-          for (vitri = 180; vitri > 0; vitri--) {
-            sv.write(vitri);
-            delay(15);
-          }
-          close = false;
-          open = true;
-          closed = false;
-          checkdoor = true;
-          Serial.write('5');
-          str = "";
-          hidden = "";
-          x = 0;
-          delay(2500);
-          lcd.clear();
-        } else if (str.length() == 8 && str != pass) {
-          delay(500);
-          lcd.clear();
-          lcd.setCursor(0, 0);
-          lcd.print("incorrect");
-          lcd.setCursor(0, 1);
-          lcd.print("Password!");
-          str = "";
-          hidden = "";
-          x = 0;
-          delay(2000);
-          lcd.clear();
-        }
-      }
-      if (temp == 'C' && temp != 0) {
-        if (str.length() > 0) {
-          str.remove(str.length() - 1);
-          hidden.remove(hidden.length() - 1);
-          x--;
-          lcd.clear();
-        }
-        lcd.setCursor(0, 1);
-        lcd.print(hidden);
-        //Serial.println(str);
-      }
-      if (temp == 'D' && temp != 0) {
-        str = "";
-        new_password = true;
-        close = false;
-        lcd.clear();
-      }
+  // setup user auth
+  if (checkFirebaseInfo() && wf) {
+    Serial.println(USER_EMAIL);
+    Serial.println(USER_PASSWORD);
+    if (connectFirebase()) {
+      Serial.println("ok");
     }
+  } else {
+    setFirebaseInfo();
   }
-  while (open) {
-    lcd.setCursor(0, 0);
-    lcd.print("not closed!");
-    if (time < 50) {
-      time += 1;
-      //Serial.println(time);
+  // configMDNS();
+  if (!MDNS.begin("esp32-led")) {
+    Serial.println("Error setting up mDNS responder!");
+    while (1) {
       delay(100);
-      if (digitalRead(LDR)) {
-        time = 0;
-      }
-    }
-
-    if (time == 50) {
-      for (vitri = 0; vitri < 180; vitri++) {
-        int ldr1 = digitalRead(LDR);
-        sv.write(vitri);
-        delay(20);
-        if (ldr1) {
-          time = 0;
-          for (int j = vitri; j >= 0; j--) {
-            sv.write(j);
-            //Serial.println(j);
-            delay(15);
-          }
-          break;
-        }
-      }
-      if (vitri == 180) {
-        open = false;
-        close = true;
-        time = 0;
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("closed!");
-        if (checkdoor){
-          Serial.write('9');
-          checkdoor = false;
-        }
-        
-        delay(2000);
-        lcd.clear();
-      }
     }
   }
+  Serial.println("mDNS responder started");
 
-  if (new_password) {
-    //lcd.clear();
-    lcd.setCursor(0, 0);
-    lcd.print("New Password:");
+  // Thêm dịch vụ HTTP
+  MDNS.addService("http", "tcp", 80);
 
-    char temp = keypad.getKey();
-
-    if ((int)keypad.getState() == PRESSED) {
-      if ((char)temp != 'A' && (char)temp != 'B' && (char)temp != 'C' && (char)temp != 'B' && temp != 0) {
-        new_pass += temp;
-        lcd.setCursor(0, 1);
-        lcd.print(new_pass);
-       //Serial.println(new_pass);
-      }
-      if (temp == 'B' && temp != 0) {
-        new_password = false;
-        close = true;
-        new_pass = "";
-        lcd.clear();
-      }
-      if (temp == 'C' && temp != 0) {
-        if (new_pass.length() > 0) {
-          new_pass.remove(new_pass.length() - 1);
-          lcd.clear();
-        }
-        lcd.setCursor(0, 1);
-        lcd.print(new_pass);
-        //Serial.println(new_pass);
-      }
-      if (temp == 'A' && temp != 0 && new_pass.length() == 8) {
-        writeToEEPROM(new_pass, 0, 8);
-        pass = new_pass;
-        //Serial.println("Data written to EEPROM");
-        //Serial.println(readFromEEPROM(0, 8));
-        delay(500);
-        lcd.clear();
-        lcd.setCursor(0, 0);
-        lcd.print("changed!");
-        new_pass = "";
-        delay(2500);
-        lcd.clear();
-      }
-    }
-    delay(100);
+  server.on("/get-pin", HTTP_GET, handleGetPinRequest);
+  server.on("/get-pinNotUsed", HTTP_GET, handleGetPinNotUsedRequest);
+  server.on("/set-pin", HTTP_GET, handleSetPinRequest);
+  server.on("/unset-pin", HTTP_GET, handleUnSetPinRequest);
+  server.on("/set_user-email", HTTP_GET, handleSetUSEREMAILRequest);
+  server.on("/set_user-password", HTTP_GET, handleSetUSERPASSWORDRequest);
+  server.on("/save-data", HTTP_GET, handleSaveDataRequest);
+  server.on("/check_uid", HTTP_GET, handleCheckUIDRequest);
+  server.begin();
+  Serial.println("HTTP server started");
+  getLed();
+  getPin();
+  for (int i = 0; i < numPinUsed; i++) {
+    pinMode(pin[findIndex(pinName, pinUsed[i])], OUTPUT);
+    spin[i] = pin[findIndex(pinName, pinUsed[i])];
   }
-  while (Serial.available() > 0) {
-    char receivedChar = Serial.read();
-    data += receivedChar;
-  }
-  if (!data.equals("")) {
-    if (data.length() == 8) {
-      //Serial.println("New Password: " + data);
-      lcd.clear();
-      lcd.println("changed pass!");
-      delay(500);
-      lcd.clear();
-      writeToEEPROM(data, 0, 8);
-      pass = data;
-      Serial.write(1);
-      data = "";
-    } else if (data.equals("ope")){
-      lcd.clear();
-      lcd.setCursor(0, 0);
-      lcd.print("Opening!");
-      for (vitri = 180; vitri > 0; vitri--) {
-        sv.write(vitri);
-        delay(15);
-      }
-      close = false;
-      open = true;
-      closed = false;
-      checkdoor = true;
-      delay(2500);
-      lcd.clear();
-      delay(500);
-      //Serial.println(data);
-      data = "";
-      //Serial.println(data);
-      
+}
 
-    }
-  }
+void loop() {
+  // delay(3000);
+  // if (Firebase.getJSON(fbdo, userPath)) {
+  //   FirebaseJson json = fbdo.jsonObject();
+  //   FirebaseJsonData jsondata;
+
+  //   // for(int i = 0; i < numLed; i++)
+  //   // Lấy thông tin cho đèn den2
+  //   if (json.get(jsondata, "den2")) {
+  //     Serial.println("Den2 Status:");
+  //     Serial.println("AutoMode: " + String(jsondata.to<FirebaseJson>()->get("AutoMode").as<bool>()));
+  //     Serial.println("OffTime: " + jsondata.to<FirebaseJson>()->get("offTime").as<String>());
+  //     Serial.println("OnTime: " + jsondata.to<FirebaseJson>()->get("onTime").as<String>());
+  //     Serial.println("Status: " + String(jsondata.to<FirebaseJson>()->get("status").as<bool>()));
+  //   }
+
+  //   // Lấy thông tin cho đèn den3
+  //   if (json.get(jsondata, "den3")) {
+  //     Serial.println("Den3 Status:");
+  //     Serial.println("AutoMode: " + String(jsondata.to<FirebaseJson>()->get("AutoMode").as<bool>()));
+  //     Serial.println("OffTime: " + jsondata.to<FirebaseJson>()->get("offTime").as<String>());
+  //     Serial.println("OnTime: " + jsondata.to<FirebaseJson>()->get("onTime").as<String>());
+  //     Serial.println("Status: " + String(jsondata.to<FirebaseJson>()->get("status").as<bool>()));
+  //   }
+  // } else {
+  //   Serial.println("Failed to get data from Firebase.");
+  //   Serial.println("Reason: " + fbdo.errorReason());
+  // }
 }

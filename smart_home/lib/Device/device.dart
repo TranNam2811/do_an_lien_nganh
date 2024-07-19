@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 class Device {
   String name;
+  String espid;
   String id;
   bool status;
   String type;
@@ -11,6 +12,7 @@ class Device {
 
   Device({
     required this.name,
+    required this.espid,
     required this.id,
     this.status = false,
     required this.type, // Thêm tham số type vào constructor
@@ -45,7 +47,7 @@ class Door extends Device {
     required String id,
     bool status = false,
     required this.password,
-  }) : super(name: name, id: id, status: status, type: 'Door'); // Thiết lập type là 'door' cho Door
+  }) : super(name: name,espid: id, id: id, status: status, type: 'Door'); // Thiết lập type là 'door' cho Door
 
   @override
   void setStatus(bool newStatus) {

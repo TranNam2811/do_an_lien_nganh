@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -109,6 +110,7 @@ class _AddDevicePageState extends State<AddDevicePage> {
   final DeviceService _deviceService = DeviceService();
   List<String> devices = [];
   String? selectedDevice;
+  String? selectedPin;
   bool? isconnected = false;
   MDnsClient? _mdnsClient;
 
@@ -165,7 +167,6 @@ class _AddDevicePageState extends State<AddDevicePage> {
           if(isconnected == true)
             TextButton(
               onPressed: () {
-                _sendSaveInfoToESP32(selectedDevice!);
                 _saveDevice();
               },
               child: Text('Thêm thiết bị',
@@ -185,84 +186,80 @@ class _AddDevicePageState extends State<AddDevicePage> {
                 decoration: InputDecoration(labelText: 'Tên thiết bị'),
               ),
               SizedBox(height: 10.0),
-              if (widget.deviceType == 'Door')
-                Column(
-                  children: [
-                    SizedBox(height: 10.0),
-                    ElevatedButton(
-                      onPressed: _startMdnsSearch,
-                      child: Text('Tìm thiết bị'),
-                    ),
-                    SizedBox(height: 10.0),
-                    Container(
-                      height: 200, // Đặt chiều cao cho Container
-                      child: ListView.builder(
-                        itemCount: devices.length,
-                        itemBuilder: (context, index) {
-                          String value = devices[index];
-                          return Card(
-                            child: Padding(
-                              padding: const EdgeInsets.all(8.0), // Thêm padding cho Card
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween, // Đảm bảo nút kết nối được căn phải
-                                children: [
-                                  Expanded(
-                                    child: ListTile(
-                                      title: Text(value),
-                                    ),
-                                  ),
-                                  if (isconnected == null)
-                                    CircularProgressIndicator()
-                                  else if(isconnected == false)
-                                    TextButton(
-                                      onPressed: () async {
-                                        setState(() {
-                                          // isconnected = true;
-                                          selectedDevice = value;
-                                        });
-                                        // final _uid = FirebaseAuth.instance.currentUser!.uid;
-                                        // final _user = FirebaseAuth.instance.currentUser!.email;
-                                        // final _password = emailpasswordController.text;
-                                        // Gửi UID cho ESP32
-                                        await _showLoginDialog(context);
-                                        // await _sendUSERToESP32(value, _user!);
-                                        // await _sendPASSWORDToESP32(value, _password);
-                                        // await _checkESP32Response(value, _uid);
-                                      },
-                                      child: Text('Kết nối'),
-                                    ),
-                                  if(isconnected == true && value == selectedDevice)
-                                    Text('Connected')
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              SizedBox(height: 10.0),
-              if (widget.deviceType != 'Door')
-                CheckboxListTile(
-                  title: Text('Trạng thái mặc định: Đóng'),
-                  value: status,
-                  onChanged: (bool? value) {
-                    setState(() {
-                      status = value ?? false;
-                    });
-                  },
-                ),
-              if (widget.deviceType != 'Door')
-                Center(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      _saveDevice();
-                    },
-                    child: Text('Thêm thiết bị'),
+              Column(
+                children: [
+                  SizedBox(height: 10.0),
+                  ElevatedButton(
+                    onPressed: _startMdnsSearch,
+                    child: Text('Tìm thiết bị'),
                   ),
-                ),
-              SizedBox(height: 20.0),
+                  SizedBox(height: 10.0),
+                  Container(
+                    height: 200, // Đặt chiều cao cho Container
+                    child: ListView.builder(
+                      itemCount: devices.length,
+                      itemBuilder: (context, index) {
+                        String value = devices[index];
+                        return Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(8.0), // Thêm padding cho Card
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween, // Đảm bảo nút kết nối được căn phải
+                              children: [
+                                Expanded(
+                                  child: ListTile(
+                                    title: Text(value),
+                                  ),
+                                ),
+                                if (isconnected == null)
+                                  CircularProgressIndicator()
+                                else if(isconnected == false)
+                                  TextButton(
+                                    onPressed: () async {
+                                      setState(() {
+                                        // isconnected = true;
+                                        selectedDevice = value;
+                                      });
+                                      if(widget.deviceType == 'Door'){
+                                        await _showEspDoorConnect(context);
+                                      }else{
+                                        await _showEspLedConnect(context);
+                                      }
+
+                                      },
+                                    child: Text('Kết nối'),
+                                  ),
+                                if(isconnected == true && value == selectedDevice)
+                                  Text('Connected')
+                              ],
+                            ),
+                          ),
+                        );},
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 10.0),
+              // if (widget.deviceType != 'Door')
+              //   CheckboxListTile(
+              //     title: Text('Trạng thái mặc định: Đóng'),
+              //     value: status,
+              //     onChanged: (bool? value) {
+              //       setState(() {
+              //         status = value ?? false;
+              //       });
+              //     },
+              //   ),
+              // if (widget.deviceType != 'Door')
+              //   Center(
+              //     child: ElevatedButton(
+              //       onPressed: () {
+              //         _saveDevice();
+              //       },
+              //       child: Text('Thêm thiết bị'),
+              //     ),
+              //   ),
+              // SizedBox(height: 20.0),
             ],
           ),
         ),
@@ -279,9 +276,12 @@ class _AddDevicePageState extends State<AddDevicePage> {
       try {
         if (widget.deviceType == 'Door') {
           Door door = Door(name: name, status: status, password: password!, id: selectedDevice!);
+          await _sendSaveInfoToESP32(selectedDevice!);
           await _deviceService.addDoor(door);
         } else {
-          Device newDevice = Device(name: name,id: name, status: status, type: widget.deviceType);
+          Device newDevice = Device(name: name,espid:selectedDevice!,id: name, status: status, type: widget.deviceType);
+          await _sendSaveInfoToESP32(selectedDevice!);
+          await _sendSetPinEspLed(selectedDevice!,selectedPin!);
           await _deviceService.addDevice(newDevice);
         }
 
@@ -330,7 +330,6 @@ class _AddDevicePageState extends State<AddDevicePage> {
       );
     }
   }
-
 
   Future<void> _sendUSERToESP32(String esp32Name, String user) async {
     final url = 'http://$esp32Name.local/set_user-email?user-email=$user';
@@ -419,7 +418,7 @@ class _AddDevicePageState extends State<AddDevicePage> {
       });
     }
   }
-  Future<void> _showLoginDialog(BuildContext context) async {
+  Future<void> _showEspDoorConnect(BuildContext context) async {
     TextEditingController emailController = TextEditingController();
     TextEditingController passwordController = TextEditingController();
 
@@ -526,4 +525,161 @@ class _AddDevicePageState extends State<AddDevicePage> {
       return null;
     }
   }
+
+  Future<List<String>> _getPinNotUsedEspLed(String esp32Name) async {
+    final url = 'http://$esp32Name.local/get-pinNotUsed';
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> jsonResponse = json.decode(response.body);
+        final List<dynamic> pins = jsonResponse['pins'];
+        return pins.map((pin) => pin.toString()).toList();
+      } else {
+        print('Failed to get pin not used, status code: ${response.statusCode}');
+        return [];
+      }
+    } catch (e) {
+      print('Error: $e');
+      return [];
+    }
+  }
+
+  Future<void> _sendSetPinEspLed(String esp32Name, String pin) async {
+    final url = 'http://$esp32Name.local/set-pin?pin=$pin';
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        print('set pin successfully on ESP32');
+      } else {
+        print('Failed to set pin on ESP32');
+      }
+    } catch (e) {
+      print('Error setting pin on ESP32: $e');
+    }
+  }
+
+  Future<void> _showEspLedConnect(BuildContext context) async {
+    List<String> pins = await _getPinNotUsedEspLed(selectedDevice!);
+    TextEditingController emailController = TextEditingController();
+    TextEditingController passwordController = TextEditingController();
+
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false, // User must tap a button to close the dialog
+      builder: (BuildContext context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return AlertDialog(
+              title: Text('Kết nối'),
+              content: SingleChildScrollView(
+                child: Container(
+                  width: double.maxFinite,
+                  child: ListBody(
+                    children: <Widget>[
+                      TextField(
+                        controller: emailController,
+                        decoration: InputDecoration(
+                          labelText: 'Email',
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                      ),
+                      TextField(
+                        controller: passwordController,
+                        decoration: InputDecoration(
+                          labelText: 'Mật khẩu',
+                        ),
+                        obscureText: true,
+                      ),
+                      SizedBox(height: 20),
+                      Container(
+                        height: 200,
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: pins.length,
+                          itemBuilder: (BuildContext context, int index) {
+                            return Card(
+                              color: selectedPin == pins[index] ? Colors.blueGrey : Colors.white,
+                              elevation: 5,
+                              margin: EdgeInsets.symmetric(vertical: 5),
+                              child: ListTile(
+                                title: Text(pins[index]),
+                                onTap: () {
+                                  setState(() {
+                                    selectedPin = pins[index];
+                                  });
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              actions: <Widget>[
+                TextButton(
+                  child: Text('Hủy'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+                TextButton(
+                  child: Text('Kết nối'),
+                  onPressed: () async {
+                    final email = emailController.text.trim();
+                    final password = passwordController.text.trim();
+                    if (email.isEmpty || password.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Email và mật khẩu không được để trống'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    User? user = await signInWithEmailAndPassword(email, password);
+                    if (selectedPin != null && selectedPin!.isNotEmpty && user != null) {
+                      setState(() {
+                        isconnected = null; // Đánh dấu đang kiểm tra
+                      });
+                      await _sendUSERToESP32(selectedDevice!, email);
+                      await _sendPASSWORDToESP32(selectedDevice!, password);
+                      await _checkESP32Response(selectedDevice!, user.uid);
+                      Navigator.of(context).pop(); // Đóng hộp thoại
+                    } else {
+                      setState(() {
+                        isconnected = false; // Không kết nối thành công
+                      });
+                      // Hiển thị thông báo lỗi
+                      showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return AlertDialog(
+                            title: Text('Lỗi'),
+                            content: Text('Đăng nhập thất bại. Vui lòng kiểm tra email và mật khẩu.'),
+                            actions: [
+                              TextButton(
+                                onPressed: () {
+                                  Navigator.of(context).pop();
+                                },
+                                child: Text('Đóng'),
+                              ),
+                            ],
+                          );
+                        },
+                      );
+                    }
+                  },
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+
+
 }

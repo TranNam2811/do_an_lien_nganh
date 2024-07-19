@@ -14,10 +14,11 @@ class DeviceService {
       await _firestore.collection('users').doc(_uid).collection('devices').doc(device.name).set({
         'name': device.name,
         'id': device.id,
-        'type': device.type
+        'type': device.type,
+        'espid':device.espid
         // Add other fields as needed
       });
-      await _database.reference().child('users').child(_uid).child(device.id).set({'status': device.status});
+      await _database.reference().child('users').child(_uid).child(device.espid).child(device.id).set({'status': device.status});
       print('Device added successfully!');
     } catch (e) {
       print('Error adding device: $e');
@@ -32,7 +33,7 @@ class DeviceService {
         'name': door.name,
         'password':door.password,
         'id':door.id,
-        'status': door.status,
+        'espid': door.espid,
         'type': door.type
         // Add other fields as needed
       });

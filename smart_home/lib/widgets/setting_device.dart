@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:smart_home/Device/device.dart';
+import 'package:smart_home/widgets/auto_mode.dart';
 import 'package:smart_home/widgets/door_history.dart';
 
 class SettingDevice extends StatefulWidget {
@@ -22,7 +23,7 @@ class _SettingDeviceState extends State<SettingDevice> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text("Setting " + widget.device.type,
+        title: Text("Setting " + widget.device.name,
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: Colors.white,
@@ -42,6 +43,20 @@ class _SettingDeviceState extends State<SettingDevice> {
                 _renameDevice(widget.device.id, widget.device.name);
               },
             ),
+            if (widget.device.type != 'Door')
+              ListTile(
+                leading: Icon(Icons.auto_mode),
+                title: Text('Auto mode'),
+                onTap: () {
+                  // Handle view access history
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => AutoMode(device: widget.device),
+                    ),
+                  );
+                },
+              ),
             if (widget.device.type.toLowerCase().contains('door'))
               ListTile(
                 leading: Icon(Icons.history),
@@ -70,7 +85,7 @@ class _SettingDeviceState extends State<SettingDevice> {
               title: Text('Delete Device'),
               onTap: () {
                 // Handle delete device
-                _deleteDevice(widget.device.id);
+                _deleteDevice(widget.device);
                 Navigator.of(context).pop();
               },
             ),
@@ -79,12 +94,17 @@ class _SettingDeviceState extends State<SettingDevice> {
       ),
     );
   }
-  void _deleteDevice(String deviceId) {
+  void _deleteDevice(Device device) {
     final User? user = FirebaseAuth.instance.currentUser;
     if (user != null) {
       final _uid = user.uid;
-      _firestore.collection('users').doc(_uid).collection('devices').doc(deviceId).delete();
-      _database.reference().child('users').child(_uid).child(deviceId).remove();
+      _firestore.collection('users').doc(_uid).collection('devices').doc(device.id).delete();
+      if(device.type == 'Door'){
+        _database.reference().child('users').child(_uid).child(device.id).remove();
+      }else{
+        _database.reference().child('users').child(_uid).child(device.espid).child(device.id).remove();
+      }
+      
     }
   }
   void _renameDevice(String deviceId, String currentName) {
@@ -125,11 +145,7 @@ class _SettingDeviceState extends State<SettingDevice> {
       },
     );
   }
-
-  void _viewAccessHistory(String deviceId) {
-    // Implement view access history logic
-    // For example, navigate to another screen that shows the access history
-  }
+  
 
   void _changeDoorPassword(Device device) {
     TextEditingController oldPasswordController = TextEditingController();
