@@ -15,7 +15,8 @@ class DeviceService {
         'name': device.name,
         'id': device.id,
         'type': device.type,
-        'espid':device.espid
+        'espid':device.espid,
+        'pin': device.pin
         // Add other fields as needed
       });
       await _database.reference().child('users').child(_uid).child(device.espid).child(device.id).set({'status': device.status});
@@ -34,7 +35,8 @@ class DeviceService {
         'password':door.password,
         'id':door.id,
         'espid': door.espid,
-        'type': door.type
+        'type': door.type,
+        'pin': door.pin
         // Add other fields as needed
       });
       await _database.reference().child('users').child(_uid).child(door.id).set({

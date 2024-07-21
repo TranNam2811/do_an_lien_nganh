@@ -279,9 +279,10 @@ class _AddDevicePageState extends State<AddDevicePage> {
           await _sendSaveInfoToESP32(selectedDevice!);
           await _deviceService.addDoor(door);
         } else {
-          Device newDevice = Device(name: name,espid:selectedDevice!,id: name, status: status, type: widget.deviceType);
+          Device newDevice = Device(name: name,espid:selectedDevice!,id: name, status: status, type: widget.deviceType, pin: selectedPin!);
           await _sendSaveInfoToESP32(selectedDevice!);
           await _sendSetPinEspLed(selectedDevice!,selectedPin!);
+          await _sendSetLedEspLed(selectedDevice!,name);
           await _deviceService.addDevice(newDevice);
         }
 
@@ -546,6 +547,20 @@ class _AddDevicePageState extends State<AddDevicePage> {
 
   Future<void> _sendSetPinEspLed(String esp32Name, String pin) async {
     final url = 'http://$esp32Name.local/set-pin?pin=$pin';
+    try {
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode == 200) {
+        print('set pin successfully on ESP32');
+      } else {
+        print('Failed to set pin on ESP32');
+      }
+    } catch (e) {
+      print('Error setting pin on ESP32: $e');
+    }
+  }
+
+  Future<void> _sendSetLedEspLed(String esp32Name, String led) async {
+    final url = 'http://$esp32Name.local/set-led?led=$led';
     try {
       final response = await http.get(Uri.parse(url));
       if (response.statusCode == 200) {

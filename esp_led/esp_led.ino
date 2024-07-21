@@ -6,9 +6,13 @@
 #include <Preferences.h>
 #include <NTPClient.h>
 #include <TimeLib.h>
+#include <Keypad.h>
 
-String WIFI_SSID = "";
-String WIFI_PASSWORD = "";
+// real time
+WiFiUDP ntpUDP;
+NTPClient real_time(ntpUDP, "pool.ntp.org", 0, 60000);
+String WIFI_SSID = "BMTNLK 2.4G";
+String WIFI_PASSWORD = "10042022";
 
 #define FIREBASE_HOST "https://smart-home-87097-default-rtdb.asia-southeast1.firebasedatabase.app/"
 #define FIREBASE_AUTH "AIzaSyAn9GxD1KR6PuzDwuOXuBa4YY035a6hfgY"
@@ -104,6 +108,32 @@ bool connectFirebase() {
     return false;
   }
 }
+int getHour(String time) {
+  return time.substring(0, time.indexOf(':')).toInt();
+}
+
+int getMinute(String time) {
+  return time.substring(time.indexOf(':') + 1).toInt();
+}
+bool getRTC(String OnTime, String OffTime) {
+  real_time.begin();
+  real_time.update();
+  unsigned long currentTime = real_time.getEpochTime();
+  currentTime += 7 * 3600;
+  setTime(currentTime);
+  real_time.end();
+  int onHour = getHour(OnTime);
+  int onMinute = getMinute(OnTime);
+  int onTotalMinutes = onHour * 60 + onMinute;
+  int offHour = getHour(OffTime);
+  int offMinute = getMinute(OffTime);
+  int offTotalMinutes = offHour * 60 + offMinute;
+  int currentHour = hour();
+  int currentMinute = minute();
+  int currentTotalMinutes = currentHour * 60 + currentMinute;
+  return currentTotalMinutes >= onTotalMinutes && currentTotalMinutes < offTotalMinutes;
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ///////////////////------------------------- Lưu trữ dữ thông tin --------------------------////////////////////////////////////////////////////////////
@@ -116,6 +146,8 @@ String pinName[5] = { "pin1", "pin2", "pin3", "pin4", "pin5" };
 String ledName[5];
 String pinNotUsed[5];
 String pinUsed[5];
+bool status[5];
+bool stt[5];
 int numPinNotUsed = 0;
 int numPinUsed = 0;
 int numLed = 0;
@@ -127,7 +159,23 @@ int findIndex(String arr[], String value) {
   }
   return -1;
 }
-
+void getStatus() {
+  eeprom.begin("status", false);
+  for (int i = 0; i < numLed; i++) {
+    if (eeprom.isKey(ledName[i].c_str())) {
+      status[i] = eeprom.getBool(ledName[i].c_str());
+      stt[i] = eeprom.getBool(ledName[i].c_str());
+    } else {
+      eeprom.putBool(ledName[i].c_str(), false);
+    }
+  }
+  eeprom.end();
+}
+void setStatus(String ledname, bool status) {
+  eeprom.begin("status", false);
+  eeprom.putBool(ledname.c_str(), status);
+  eeprom.end();
+}
 void getLed() {
   numLed = 0;
   eeprom.begin("led", false);
@@ -247,11 +295,12 @@ void handleGetPinNotUsedRequest(AsyncWebServerRequest *request) {
   serializeJson(jsonDoc, jsonString);
   request->send(200, "application/json", jsonString);
 }
+String sPin = "";
 void handleSetLedRequest(AsyncWebServerRequest *request) {
   if (request->hasParam("led")) {
     String led = request->getParam("led")->value();
-    setLed(sPin,led);
-    request->send(200, "text/plain", "add pin" + led);
+    setLed(sPin, led);
+    request->send(200, "text/plain", "add led" + led);
   } else {
     request->send(400, "text/plain", "fail");
   }
@@ -260,12 +309,13 @@ void handleUnSetLedRequest(AsyncWebServerRequest *request) {
   if (request->hasParam("pin")) {
     String pin = request->getParam("pin")->value();
     unSetPin(pin);
-    request->send(200, "text/plain", "remove pin" + pin);
+    unSetLed(pin);
+    request->send(200, "text/plain", "remove led of " + pin);
   } else {
     request->send(400, "text/plain", "fail");
   }
 }
-String sPin = "";
+
 void handleSetPinRequest(AsyncWebServerRequest *request) {
   if (request->hasParam("pin")) {
     sPin = request->getParam("pin")->value();
@@ -330,13 +380,14 @@ void setup() {
   Serial.begin(115200);
   bool wf;
   // Kết nối WiFi
-  if (checkWifiInfo()) {
-    Serial.println(WIFI_SSID);
-    Serial.println(WIFI_PASSWORD);
-    wf = connectToWiFi();
-  } else {
-    setWiFiInfo();
-  }
+  // if (checkWifiInfo()) {
+  //   Serial.println(WIFI_SSID);
+  //   Serial.println(WIFI_PASSWORD);
+  //   wf = connectToWiFi();
+  // } else {
+  //   setWiFiInfo();
+  // }
+  wf = connectToWiFi();
 
   // setup user auth
   if (checkFirebaseInfo() && wf) {
@@ -364,6 +415,8 @@ void setup() {
   server.on("/get-pinNotUsed", HTTP_GET, handleGetPinNotUsedRequest);
   server.on("/set-pin", HTTP_GET, handleSetPinRequest);
   server.on("/unset-pin", HTTP_GET, handleUnSetPinRequest);
+  server.on("/set-led", HTTP_GET, handleSetLedRequest);
+  server.on("/unset-led", HTTP_GET, handleUnSetLedRequest);
   server.on("/set_user-email", HTTP_GET, handleSetUSEREMAILRequest);
   server.on("/set_user-password", HTTP_GET, handleSetUSERPASSWORDRequest);
   server.on("/save-data", HTTP_GET, handleSaveDataRequest);
@@ -372,38 +425,118 @@ void setup() {
   Serial.println("HTTP server started");
   getLed();
   getPin();
+  getStatus();
   for (int i = 0; i < numPinUsed; i++) {
-    pinMode(pin[findIndex(pinName, pinUsed[i])], OUTPUT);
     spin[i] = pin[findIndex(pinName, pinUsed[i])];
+    pinMode(spin[i], OUTPUT);
   }
 }
 
+const byte rows = 4;     //số hàng
+const byte columns = 4;  //số cột
+//Định nghĩa các giá trị trả về
+char keys[rows][columns] = {
+  { '1', '2', '3', 'A' },
+  { '4', '5', '6', 'B' },
+  { '7', '8', '9', 'C' },
+  { '*', '0', '#', 'D' },
+};
+uint8_t rowPins[rows] = { 13, 12, 14, 27 };
+uint8_t columnPins[columns] = { 26, 25, 33, 32 };
+Keypad keypad = Keypad(makeKeymap(keys), rowPins, columnPins, rows, columns);
+
+unsigned long t;
+
 void loop() {
-  // delay(3000);
-  // if (Firebase.getJSON(fbdo, userPath)) {
-  //   FirebaseJson json = fbdo.jsonObject();
-  //   FirebaseJsonData jsondata;
+  char temp = keypad.getKey();
+  if ((int)keypad.getState() == PRESSED) {
+    if (temp == '1') {
+      int i = String(temp).toInt();
+      status[i - 1] = !status[i - 1];
+    }
+    if (temp == '2') {
+      int i = String(temp).toInt();
+      status[i - 1] = !status[i - 1];
+    }
+    if (temp == '3') {
+      int i = String(temp).toInt();
+      status[i - 1] = !status[i - 1];
+    }
+    if (temp == '4') {
+      int i = String(temp).toInt();
+      status[i - 1] = !status[i - 1];
+    }
+    if (temp == '5') {
+      int i = String(temp).toInt();
+      status[i - 1] = !status[i - 1];
+    }
+  }
+  FirebaseJson json;
+  FirebaseJsonData jsondata;
+  if (millis() - t > 3000 && numLed > 0) {
+    if (Firebase.getJSON(fbdo, userPath)) {
+      json = fbdo.jsonObject();
+      t = millis();
+    } else {
+      Serial.println("Failed to get data from Firebase.");
+      Serial.println("Reason: " + fbdo.errorReason());
+    }
+  }
+  for (int i = 0; i < numLed; i++) {
 
-  //   // for(int i = 0; i < numLed; i++)
-  //   // Lấy thông tin cho đèn den2
-  //   if (json.get(jsondata, "den2")) {
-  //     Serial.println("Den2 Status:");
-  //     Serial.println("AutoMode: " + String(jsondata.to<FirebaseJson>()->get("AutoMode").as<bool>()));
-  //     Serial.println("OffTime: " + jsondata.to<FirebaseJson>()->get("offTime").as<String>());
-  //     Serial.println("OnTime: " + jsondata.to<FirebaseJson>()->get("onTime").as<String>());
-  //     Serial.println("Status: " + String(jsondata.to<FirebaseJson>()->get("status").as<bool>()));
-  //   }
-
-  //   // Lấy thông tin cho đèn den3
-  //   if (json.get(jsondata, "den3")) {
-  //     Serial.println("Den3 Status:");
-  //     Serial.println("AutoMode: " + String(jsondata.to<FirebaseJson>()->get("AutoMode").as<bool>()));
-  //     Serial.println("OffTime: " + jsondata.to<FirebaseJson>()->get("offTime").as<String>());
-  //     Serial.println("OnTime: " + jsondata.to<FirebaseJson>()->get("onTime").as<String>());
-  //     Serial.println("Status: " + String(jsondata.to<FirebaseJson>()->get("status").as<bool>()));
-  //   }
-  // } else {
-  //   Serial.println("Failed to get data from Firebase.");
-  //   Serial.println("Reason: " + fbdo.errorReason());
-  // }
+    if (json.get(jsondata, ledName[i] + "/AutoMode")) {
+      if (jsondata.boolValue) {
+        json.get(jsondata, ledName[i] + "/onTime");
+        String on = jsondata.stringValue;
+        json.get(jsondata, ledName[i] + "/offTime");
+        String off = jsondata.stringValue;
+        bool check = getRTC(on, off);
+        if (check) {
+          digitalWrite(spin[i], HIGH);
+        } else {
+          digitalWrite(spin[i], LOW);
+        }
+        if (Firebase.setBool(fbdo, userPath + "/" + ledName[i] + "/status", check)) {
+          Serial.println("ok");
+        } else {
+          Serial.println("fail");
+        }
+      } else {
+        if (json.get(jsondata, ledName[i] + "/status")) {
+          if (jsondata.boolValue != status[i]) {
+            if (stt[i] != jsondata.boolValue) {
+              stt[i] = jsondata.boolValue;
+              if (stt[i]) {
+                Serial.println(spin[i]);
+                digitalWrite(spin[i], HIGH);
+              } else {
+                digitalWrite(spin[i], LOW);
+              }
+              status[i] = jsondata.boolValue;
+            } else if (stt[i] != status[i]) {
+              stt[i] = status[i];
+              if (stt[i]) {
+                Serial.println(spin[i]);
+                digitalWrite(spin[i], HIGH);
+              } else {
+                digitalWrite(spin[i], LOW);
+              }
+              if (Firebase.setBool(fbdo, userPath + "/" + ledName[i] + "/status", status[i])) {
+                Serial.println("ok");
+              } else {
+                Serial.println("fail");
+              }
+            }
+          } else {
+            if (stt[i]) {
+              Serial.println(spin[i]);
+              digitalWrite(spin[i], HIGH);
+            } else {
+              digitalWrite(spin[i], LOW);
+            }
+          }
+        }
+      }
+    }
+  }
 }

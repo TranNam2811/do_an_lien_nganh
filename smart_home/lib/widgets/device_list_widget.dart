@@ -1,5 +1,4 @@
 import 'dart:async';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +13,7 @@ class DeviceListWidget extends StatefulWidget {
 }
 
 class _DeviceListWidget extends State<DeviceListWidget> {
+  final User? user = FirebaseAuth.instance.currentUser;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseDatabase _database = FirebaseDatabase.instance;
 
@@ -61,7 +61,8 @@ class _DeviceListWidget extends State<DeviceListWidget> {
           'id': doc['id'],
           'name': doc['name'],
           'type': doc['type'],
-          'espid': doc['espid']  // Thêm espid vào danh sách thiết bị
+          'espid': doc['espid'],  // Thêm espid vào danh sách thiết bị
+          'pin': doc['pin']
         });
       }
     } catch (e) {
@@ -102,11 +103,12 @@ class _DeviceListWidget extends State<DeviceListWidget> {
         bool? status = await getDeviceStatus(_uid, device['espid'], device['id'], device['type']);
         // Create Device instance with StreamController
         Device newDevice = Device(
-          id: device['id'],
-          name: device['name'],
-          espid: device['espid'],
-          status: status ?? false,
-          type: device['type'],
+            id: device['id'],
+            name: device['name'],
+            espid: device['espid'],
+            status: status ?? false,
+            type: device['type'],
+            pin: device['pin']
         );
         // Listen to status changes
         DatabaseReference ref;
@@ -143,7 +145,9 @@ class _DeviceListWidget extends State<DeviceListWidget> {
     return StreamBuilder<List<Device>>(
       stream: _deviceStreamController.stream,
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (user == null){
+          return Center(child: Text('Please login.'));
+        } else if (snapshot.connectionState == ConnectionState.waiting) {
           return Center(child: CircularProgressIndicator());
         } else if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
@@ -282,8 +286,5 @@ class DeviceStatusWidget extends StatelessWidget {
           .child('status');
       ref.set(newStatus);
     }
-
-
   }
-
 }

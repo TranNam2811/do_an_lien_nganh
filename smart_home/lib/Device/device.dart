@@ -7,6 +7,7 @@ class Device {
   String id;
   bool status;
   String type;
+  String pin;
   late ValueNotifier<bool> _statusNotifier;
   late StreamController<bool> _statusController;
 
@@ -15,7 +16,8 @@ class Device {
     required this.espid,
     required this.id,
     this.status = false,
-    required this.type, // Thêm tham số type vào constructor
+    required this.type,
+    required this.pin
   }) {
     _statusNotifier = ValueNotifier<bool>(status);
     _statusController = StreamController<bool>.broadcast(onListen: () {
@@ -47,7 +49,7 @@ class Door extends Device {
     required String id,
     bool status = false,
     required this.password,
-  }) : super(name: name,espid: id, id: id, status: status, type: 'Door'); // Thiết lập type là 'door' cho Door
+  }) : super(name: name,espid: id, id: id, status: status, type: 'Door',pin: "null"); // Thiết lập type là 'door' cho Door
 
   @override
   void setStatus(bool newStatus) {
